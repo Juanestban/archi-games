@@ -9,6 +9,7 @@ mod i18n;
 mod process;
 mod secrets;
 mod session;
+mod sound;
 mod ui;
 mod worker;
 

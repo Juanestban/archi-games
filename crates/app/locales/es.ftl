@@ -72,3 +72,12 @@ ui-error-network = No hay conexión con fortnite-api.com; se reintentará.
 ui-error-unexpected = La API respondió algo inesperado; se reintentará.
 ui-error-storage = No se pudo leer o escribir la base de datos.
 ui-error-credentials = No se pudo acceder al Administrador de credenciales de Windows.
+
+ui-toast-unlocked = Logro desbloqueado
+ui-toast-platinum = ¡Platino conseguido!
+ui-toast-level-up = ¡Subes de nivel!
+ui-toast-sample = Logro de ejemplo
+ui-settings-sound = Sonido y notificaciones
+ui-settings-sound-help = La notificación aparece sobre el juego en modo ventana o pantalla completa sin bordes, no en pantalla completa exclusiva.
+ui-volume = Volumen
+ui-notification-test = Probar notificación

@@ -116,7 +116,28 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   (`AccountSummary::platform_stats`), igual que al evaluarlos.
 - **Porcentaje completado** de un juego = logros desbloqueados / total, con el
   platino incluido (sin ponderar por rango).
-- **Ajustes de volumen e inicio con Windows** se añadirán con los pasos 5 y 6.
+- **Inicio con Windows** se añadirá en Ajustes con el paso 6.
+
+### Notificación y sonidos (decidido al implementar el paso 5)
+
+- **Ventana de notificación:** viewport inmediato de egui de 400×96 a 24 px del
+  borde derecho y 72 px del inferior (deja libre la barra de tareas) del monitor
+  principal. Sin bordes, transparente, siempre encima, deja pasar los clics, no
+  aparece en la barra de tareas y no roba el foco. Solo existe mientras hay
+  tarjetas en cola.
+- **Tarjetas:** entran deslizándose (0,35 s), duran 5 s y se desvanecen
+  (0,4 s). Orden: desbloqueos, platinos al final y la subida de nivel la última.
+  El platino lleva un borde que late.
+- **Con la ventana principal minimizada u oculta** las notificaciones siguen
+  saliendo: mientras hay cola, `logic` pide `RequestPaintWhileHidden`.
+- **Sonidos sintetizados** en código (tonos de campana con envolvente), sin
+  archivos de audio ni licencias: más notas cuanto más alto el rango; el platino
+  acaba en un acorde. Suenan al aparecer su tarjeta. Sin dispositivo de audio,
+  se omiten.
+- **Volumen** 0–100 (por defecto 70) en Ajustes, con un botón "Probar
+  notificación" que muestra una tarjeta de oro, una de platino y una de nivel.
+- **Desbloqueos retroactivos** (logros nuevos que el historial ya cumplía)
+  también se notifican, al arrancar.
 
 ## 3. Modelo de logros
 
@@ -211,5 +232,12 @@ instalador MSI y, a medio plazo, ejecutable firmado.
 ## Pendiente de investigar
 
 - Límites de peticiones de fortnite-api.com: no están documentados; se respeta `429`/`Retry-After`.
-- Formato de los `.replay` de Fortnite (fase 2).
+- Formato de los `.replay` de Fortnite (fase 2). En concreto, para los logros de
+  cofres: si registran el momento en que cada cofre pasa a abierto y la posición
+  del jugador, para atribuirle el cofre por proximidad. Solo sirve en PC con las
+  repeticiones activadas; las partidas en consola no contarían.
+- **Descartado:** detectar cofres leyendo el teclado (cuánto se mantiene pulsada
+  la tecla de interactuar). Es un hook global de teclado, prohibido por el
+  ADR 0001 y típico de keyloggers. Además no es fiable: puertas, munición,
+  reanimar, teclas reasignadas, mando y consola.
 - `tray-icon` junto con eframe en Windows (paso 6).

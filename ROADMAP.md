@@ -5,11 +5,12 @@ terminarla y actualiza **Estado actual**.
 
 ## Estado actual
 
-- **Hecho:** pasos 1 (`core`), 2 (`storage`), 3 (tracker de Fortnite) y 4 (interfaz).
+- **Hecho:** pasos 1 (`core`), 2 (`storage`), 3 (tracker de Fortnite), 4 (interfaz) y 5
+  (notificación y sonidos).
   La cuenta del usuario ya está vinculada y tiene su lectura base.
 - **Pendiente del paso 3:** el hito. Tras la próxima partida real del usuario, el
   desbloqueo debe verse en Perfil e Historial.
-- **Siguiente:** paso 5 (ventana de notificación y sonidos).
+- **Siguiente:** paso 6 (bandeja del sistema, inicio con Windows, instancia única, MSI).
 - **Última actualización:** 2026-11-02.
 
 ## Fase 1: versión inicial con Fortnite
@@ -54,11 +55,13 @@ terminarla y actualiza **Estado actual**.
 - [x] Clave de API en el Administrador de credenciales de Windows (`keyring`), migrada desde SQLite
 - [x] Test: todo token `ui-…` usado en el código existe en `es` y `en`
 
-### Paso 5: notificación y sonidos
-- [ ] Viewport egui transparente, sin bordes, siempre encima, que deja pasar los clics
-- [ ] Animación de entrada, unos 5 s, cola de desbloqueos con el platino al final
-- [ ] Tarjeta de subida de nivel
-- [ ] Sonidos por rango y de subida de nivel (`rodio`)
+### Paso 5: notificación y sonidos ✅
+- [x] Viewport egui transparente, sin bordes, siempre encima, que deja pasar los clics
+- [x] Animación de entrada, unos 5 s, cola de desbloqueos con el platino al final
+- [x] Tarjeta de subida de nivel
+- [x] Sonidos por rango y de subida de nivel (`rodio`), sintetizados en código
+- [x] Ajustes: volumen y botón "Probar notificación"
+- [x] Funciona con la ventana principal minimizada (`RequestPaintWhileHidden`)
 
 ### Paso 6: integración con el sistema
 - [ ] Icono en la bandeja (`tray-icon`); cerrar la ventana la oculta
@@ -69,6 +72,9 @@ terminarla y actualiza **Estado actual**.
 ## Fase 2
 
 - [ ] Analizar los `.replay` de Fortnite en solo lectura, para logros por partida más finos
+- [ ] Logros de cofres abiertos (10, 50, 100, 250, 500, 1000) en un `pack` aparte, **solo si** las
+  repeticiones permiten atribuir cada cofre al jugador (posición del jugador cuando el cofre pasa a
+  abierto). Ninguna API da los cofres; ver DESIGN, "Pendiente de investigar"
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
 - [ ] Firmar el ejecutable

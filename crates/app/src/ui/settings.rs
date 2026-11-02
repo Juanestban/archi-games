@@ -4,6 +4,7 @@ use eframe::egui::{self, RichText, TextEdit, Ui};
 
 use super::{ArchiApp, theme};
 use crate::i18n::{Language, LanguageChoice};
+use crate::sound;
 use crate::worker::Command;
 
 impl ArchiApp {
@@ -13,6 +14,28 @@ impl ArchiApp {
     self.api_key_card(ui);
     self.account_card(ui);
     self.tracking_card(ui);
+    self.sound_card(ui);
+  }
+
+  fn sound_card(&mut self, ui: &mut Ui) {
+    let help = self.tr("ui-settings-sound-help");
+    let volume_label = self.tr("ui-volume");
+    let test = self.tr("ui-notification-test");
+    let mut volume = self.volume;
+    let mut test_clicked = false;
+    section(ui, &self.tr("ui-settings-sound"), |ui| {
+      ui.label(theme::muted(help));
+      ui.add(egui::Slider::new(&mut volume, 0..=100).text(volume_label));
+      test_clicked = ui.button(test).clicked();
+    });
+    if volume != self.volume {
+      self.volume = volume;
+      // Not worth interrupting over: the volume still applies this session.
+      let _ = self.storage.set_setting(sound::VOLUME_SETTING, &volume.to_string());
+    }
+    if test_clicked {
+      self.test_notifications();
+    }
   }
 
   fn language_card(&mut self, ui: &mut Ui) {

@@ -72,3 +72,12 @@ ui-error-network = Can't reach fortnite-api.com; will retry.
 ui-error-unexpected = The API sent something unexpected; will retry.
 ui-error-storage = Couldn't read or write the database.
 ui-error-credentials = Couldn't access Windows Credential Manager.
+
+ui-toast-unlocked = Achievement unlocked
+ui-toast-platinum = Platinum earned!
+ui-toast-level-up = Level up!
+ui-toast-sample = Sample achievement
+ui-settings-sound = Sound and notifications
+ui-settings-sound-help = Notifications show over the game in windowed or borderless fullscreen mode, not in exclusive fullscreen.
+ui-volume = Volume
+ui-notification-test = Test notification

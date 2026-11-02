@@ -5,6 +5,7 @@
 mod achievements;
 mod games;
 mod history;
+mod notify;
 mod profile;
 mod settings;
 mod theme;
@@ -20,6 +21,7 @@ use fluent_bundle::FluentValue;
 
 use crate::catalog::Catalog;
 use crate::i18n::{I18n, LanguageChoice};
+use crate::sound::{self, Sounds};
 use crate::worker::{self, Event, Problem, Status};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +79,11 @@ pub struct ArchiApp {
   api_key_input: String,
   epic_name_input: String,
   link_result: Option<Result<(), Problem>>,
+
+  notifier: notify::Notifier,
+  sounds: Sounds,
+  /// 0–100.
+  volume: u8,
 }
 
 impl ArchiApp {
@@ -84,6 +91,7 @@ impl ArchiApp {
     theme::apply(&cc.egui_ctx);
     let language = storage.setting(LanguageChoice::SETTING).ok().flatten().map(|code| LanguageChoice::from_code(&code)).unwrap_or_default();
     let summary = storage.account_summary(&catalog.all(), &catalog.rules).unwrap_or_else(|_| empty_summary(&catalog));
+    let volume = storage.setting(sound::VOLUME_SETTING).ok().flatten().and_then(|v| v.parse().ok()).unwrap_or(sound::DEFAULT_VOLUME);
     let mut app = Self {
       i18n: I18n::new(language.resolve()),
       language,
@@ -101,6 +109,9 @@ impl ArchiApp {
       api_key_input: String::new(),
       epic_name_input: String::new(),
       link_result: None,
+      notifier: notify::Notifier::default(),
+      sounds: Sounds::new(),
+      volume,
       catalog,
       storage,
       worker,
@@ -131,7 +142,12 @@ impl ArchiApp {
       match event {
         Event::Status(status) => self.status = status,
         Event::Progress(progress) => self.progress = progress,
-        Event::Unlocked(_) => self.reload(),
+        Event::Unlocked(unlocks) => {
+          let level_before = self.summary.level.level;
+          self.reload();
+          let level = self.summary.level.level;
+          self.notifier.push(notify::toasts(&self.catalog, &unlocks, (level > level_before).then_some(level)));
+        }
         Event::Linked => {
           self.link_result = Some(Ok(()));
           self.epic_name_input.clear();
@@ -259,13 +275,26 @@ fn empty_summary(catalog: &Catalog) -> AccountSummary {
 }
 
 impl eframe::App for ArchiApp {
-  fn logic(&mut self, _ctx: &egui::Context, _frame: &mut eframe::Frame) {
+  fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     self.handle_events();
+    // The main window may be minimized or hidden while a game runs; the
+    // notification window still needs `ui` to run.
+    if self.notifier.is_active() {
+      ctx.send_viewport_cmd(egui::ViewportCommand::RequestPaintWhileHidden);
+      ctx.request_repaint();
+    }
+  }
+
+  /// Transparent, so the notification window has no background. The main
+  /// window paints its own panels over it.
+  fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+    [0.0; 4]
   }
 
   fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
     // Keeps "5 min ago" and the like current.
     ui.ctx().request_repaint_after(Duration::from_secs(30));
+    self.notifications(ui.ctx());
 
     egui::Panel::left("nav").exact_size(210.0).resizable(false).frame(theme::nav_frame()).show(ui, |ui| self.nav(ui));
     egui::CentralPanel::default_margins().frame(theme::content_frame()).show(ui, |ui| {

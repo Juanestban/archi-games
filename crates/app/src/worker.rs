@@ -35,7 +35,7 @@ pub enum Event {
   Status(Status),
   Progress(GameProgress),
   /// In notification order (platinum, then meta-achievements, last).
-  Unlocked(#[expect(dead_code, reason = "the notification queue (roadmap step 5) reads it")] Vec<Unlock>),
+  Unlocked(Vec<Unlock>),
   Linked,
   LinkFailed(Problem),
 }

@@ -7,6 +7,7 @@ use eframe::egui::{self, Color32, CornerRadius, Frame, Margin, RichText, Sense, 
 pub const BACKGROUND: Color32 = Color32::from_rgb(13, 16, 30);
 pub const PANEL: Color32 = Color32::from_rgb(20, 24, 44);
 pub const CARD: Color32 = Color32::from_rgb(28, 33, 60);
+pub const RAISED: Color32 = Color32::from_rgb(46, 53, 94);
 pub const ACCENT: Color32 = Color32::from_rgb(124, 92, 255);
 pub const TEXT: Color32 = Color32::from_rgb(228, 230, 245);
 pub const MUTED: Color32 = Color32::from_rgb(140, 146, 180);
@@ -21,9 +22,11 @@ pub fn apply(ctx: &egui::Context) {
   visuals.override_text_color = Some(TEXT);
   visuals.selection.bg_fill = ACCENT;
   visuals.hyperlink_color = ACCENT;
-  visuals.widgets.inactive.weak_bg_fill = CARD;
-  visuals.widgets.inactive.bg_fill = CARD;
-  visuals.widgets.hovered.weak_bg_fill = Color32::from_rgb(44, 50, 88);
+  // Buttons and slider rails sit on cards, so they need to stand out from CARD.
+  visuals.widgets.inactive.weak_bg_fill = RAISED;
+  visuals.widgets.inactive.bg_fill = RAISED;
+  visuals.widgets.hovered.weak_bg_fill = Color32::from_rgb(62, 70, 120);
+  visuals.widgets.hovered.bg_fill = Color32::from_rgb(62, 70, 120);
   visuals.widgets.active.weak_bg_fill = ACCENT;
   ctx.set_visuals(visuals);
 }

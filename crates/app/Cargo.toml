@@ -10,6 +10,7 @@ archi-storage.workspace = true
 eframe.workspace = true
 fluent-bundle.workspace = true
 keyring.workspace = true
+rodio.workspace = true
 sys-locale.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
