@@ -1,0 +1,7 @@
+[package]
+name = "archi-games"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+archi-core.workspace = true

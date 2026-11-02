@@ -1,0 +1,20 @@
+fortnite-name = Fortnite
+
+fortnite-first_win-name = Primera corona
+fortnite-first_win-desc = Gana tu primera partida.
+fortnite-wins_10-name = Coleccionista de coronas
+fortnite-wins_10-desc = Gana 10 partidas.
+fortnite-wins_100-name = Centenario
+fortnite-wins_100-desc = Gana 100 partidas.
+fortnite-top10_50-name = Superviviente
+fortnite-top10_50-desc = Termina 50 partidas entre los 10 primeros.
+fortnite-kills_1000-name = Mil bajas
+fortnite-kills_1000-desc = Consigue 1000 eliminaciones.
+fortnite-solo_dominant-name = Dominio absoluto
+fortnite-solo_dominant-desc = Gana una partida en solitario con 10 o más eliminaciones.
+fortnite-pacifist-name = Pacifista
+fortnite-pacifist-desc = Gana una partida sin eliminar a nadie.
+fortnite-win_streak_3-name = Imparable
+fortnite-win_streak_3-desc = Gana 3 partidas seguidas.
+fortnite-platinum-name = Leyenda de la isla
+fortnite-platinum-desc = Consigue todos los logros de Fortnite.

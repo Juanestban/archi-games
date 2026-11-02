@@ -1,0 +1,20 @@
+fortnite-name = Fortnite
+
+fortnite-first_win-name = First Crown
+fortnite-first_win-desc = Win your first match.
+fortnite-wins_10-name = Crown Collector
+fortnite-wins_10-desc = Win 10 matches.
+fortnite-wins_100-name = Centurion
+fortnite-wins_100-desc = Win 100 matches.
+fortnite-top10_50-name = Survivor
+fortnite-top10_50-desc = Finish 50 matches in the top 10.
+fortnite-kills_1000-name = A Thousand Down
+fortnite-kills_1000-desc = Get 1000 eliminations.
+fortnite-solo_dominant-name = Total Domination
+fortnite-solo_dominant-desc = Win a solo match with 10 or more eliminations.
+fortnite-pacifist-name = Pacifist
+fortnite-pacifist-desc = Win a match without eliminating anyone.
+fortnite-win_streak_3-name = Unstoppable
+fortnite-win_streak_3-desc = Win 3 matches in a row.
+fortnite-platinum-name = Island Legend
+fortnite-platinum-desc = Earn every Fortnite achievement.

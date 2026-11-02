@@ -1,0 +1,69 @@
+# Logros de Fortnite. Los textos son tokens Fluent: ver locales/{es,en}.ftl.
+# Modos: all (total), solo, duo, trio, squad, ltm.
+
+[game]
+id = "fortnite"
+name = "fortnite-name"
+
+[[achievement]]
+id = "first_win"
+name = "fortnite-first_win-name"
+description = "fortnite-first_win-desc"
+tier = "bronze"
+condition = { type = "total", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "wins_10"
+name = "fortnite-wins_10-name"
+description = "fortnite-wins_10-desc"
+tier = "silver"
+condition = { type = "total", stat = "wins", target = 10 }
+
+[[achievement]]
+id = "wins_100"
+name = "fortnite-wins_100-name"
+description = "fortnite-wins_100-desc"
+tier = "gold"
+condition = { type = "total", stat = "wins", target = 100 }
+
+[[achievement]]
+id = "top10_50"
+name = "fortnite-top10_50-name"
+description = "fortnite-top10_50-desc"
+tier = "bronze"
+condition = { type = "total", stat = "top10", target = 50 }
+
+[[achievement]]
+id = "kills_1000"
+name = "fortnite-kills_1000-name"
+description = "fortnite-kills_1000-desc"
+tier = "gold"
+condition = { type = "total", stat = "kills", target = 1000 }
+
+[[achievement]]
+id = "solo_dominant"
+name = "fortnite-solo_dominant-name"
+description = "fortnite-solo_dominant-desc"
+tier = "silver"
+condition = { type = "match", mode = "solo", all = [{ stat = "wins", eq = 1 }, { stat = "kills", gte = 10 }] }
+
+[[achievement]]
+id = "pacifist"
+name = "fortnite-pacifist-name"
+description = "fortnite-pacifist-desc"
+tier = "gold"
+hidden = true
+condition = { type = "match", all = [{ stat = "wins", eq = 1 }, { stat = "kills", eq = 0 }] }
+
+[[achievement]]
+id = "win_streak_3"
+name = "fortnite-win_streak_3-name"
+description = "fortnite-win_streak_3-desc"
+tier = "gold"
+condition = { type = "streak", all = [{ stat = "wins", eq = 1 }], count = 3 }
+
+[[achievement]]
+id = "platinum"
+name = "fortnite-platinum-name"
+description = "fortnite-platinum-desc"
+tier = "platinum"

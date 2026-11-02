@@ -1,0 +1,27 @@
+# Metalogros de la plataforma. Sus estadísticas (modo "all") las calcula la
+# app: platinums, level, unlocked. Empiezan desde cero, no desde la instalación.
+
+[game]
+id = "platform"
+name = "platform-name"
+
+[[achievement]]
+id = "first_platinum"
+name = "platform-first_platinum-name"
+description = "platform-first_platinum-desc"
+tier = "gold"
+condition = { type = "total", stat = "platinums", target = 1 }
+
+[[achievement]]
+id = "level_10"
+name = "platform-level_10-name"
+description = "platform-level_10-desc"
+tier = "silver"
+condition = { type = "total", stat = "level", target = 10 }
+
+[[achievement]]
+id = "unlocked_100"
+name = "platform-unlocked_100-name"
+description = "platform-unlocked_100-desc"
+tier = "gold"
+condition = { type = "total", stat = "unlocked", target = 100 }
