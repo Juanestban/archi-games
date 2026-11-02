@@ -18,9 +18,10 @@ Reglas obligatorias. Cualquier función nueva que las rompa se rechaza.
 1. Nunca abrir un handle a un proceso de juego: nada de `OpenProcess`,
    lectura o escritura de memoria, inyección de DLLs, hooks de
    DirectX/Vulkan ni hooks globales de teclado o ratón.
-2. Un juego se detecta solo por el **nombre** en la lista de procesos. Con
-   `sysinfo`, refrescar únicamente nombres (sin memoria, rutas ni CPU), porque
-   esas consultas abren handles.
+2. Un juego se detecta solo por el **nombre** en la lista de procesos. En
+   Windows se usa la API ToolHelp (`CreateToolhelp32Snapshot`), que da los
+   nombres sin abrir ningún proceso. No se usa `sysinfo`: para obtener
+   memoria, rutas o CPU abre handles a cada proceso.
 3. Las notificaciones son una ventana propia de la app, nunca un overlay
    inyectado en el juego.
 4. Los datos vienen de APIs públicas por HTTPS. Los archivos locales del juego

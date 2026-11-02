@@ -64,6 +64,39 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   no los de la plataforma, para que no se alimenten a sí mismos. `level` sí
   incluye la XP de la plataforma, por eso se evalúan en cascada.
 
+### Tracker de Fortnite (decidido al implementar el paso 3)
+
+- **Endpoint:** `GET https://fortnite-api.com/v2/stats/br/v2?name=<nombre>` para
+  vincular y `.../v2/stats/br/v2/<accountId>` para cada consulta, con la clave
+  en la cabecera `Authorization`. Se usan las estadísticas `all` (todos los
+  dispositivos, consola incluida), de por vida.
+- **Estadísticas:** solo contadores (`score`, `wins`, `top3`…`top25`, `kills`,
+  `deaths`, `matches`, `minutes_played`, `players_outlived`); los cocientes
+  (`kd`, `winRate`…) no. Cada modo trae distintos `top*`: solo `top10`/`top25`,
+  dúo `top5`/`top12`, escuadrón `top3`/`top6`; `overall` los trae todos.
+- **La API nunca rellena `trio`**: los logros de tríos no se pueden conseguir
+  hasta que cambie.
+- **Una respuesta incompleta es un error, no una lectura.** Si faltan
+  `overall` o `matches`, no se guarda nada: una lectura vacía se leería como
+  una bajada y luego un salto, y regalaría logros.
+- **Errores:** 403 con "not public" → estadísticas privadas (se explica cómo
+  activarlas: *Mostrar en la clasificación de carrera*); 401/403 → clave
+  inválida; 404 → cuenta inexistente o sin partidas; 429 → esperar
+  `Retry-After` o 5 min. Un fallo de red se reintenta en la siguiente consulta.
+- **Detección del proceso:** con la API ToolHelp de Windows
+  (`CreateToolhelp32Snapshot`), que lista nombres sin abrir ningún proceso.
+  Sustituye a `sysinfo`, que no garantiza no abrir handles (ADR 0001). Se
+  comprueba cada 5 s; solo se busca `FortniteClient-Win64-Shipping.exe`.
+- **Frecuencia concreta:** 60 s con el juego abierto; al cerrarlo, una
+  consulta inmediata y luego cada 30 s durante 5 min; sin el juego, cada 12 min.
+- **TLS nativo** (schannel en Windows): sin OpenSSL ni compilar criptografía
+  en C.
+- **La clave de API** se guarda en la tabla `settings` de SQLite, en claro.
+  Cifrarla con el almacén de credenciales del sistema queda para el paso 4.
+- **Consola de desarrollo** hasta que exista la interfaz: `archi-games key`,
+  `link`, `status`, `poll` y `run`. Su texto está en inglés y no usa Fluent
+  porque desaparece en el paso 4.
+
 ## 3. Modelo de logros
 
 - **Rangos y XP** (puntos de trofeo de PlayStation): bronce 15, plata 30,
@@ -156,6 +189,6 @@ instalador MSI y, a medio plazo, ejecutable firmado.
 
 ## Pendiente de investigar
 
-- Endpoints, límites y formato exacto de fortnite-api.com (paso 3).
+- Límites de peticiones de fortnite-api.com: no están documentados; se respeta `429`/`Retry-After`.
 - Formato de los `.replay` de Fortnite (fase 2).
 - `tray-icon` junto con eframe en Windows (paso 6).

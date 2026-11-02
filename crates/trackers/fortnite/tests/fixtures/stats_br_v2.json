@@ -1,0 +1,51 @@
+{
+  "status": 200,
+  "data": {
+    "account": { "id": "4735ce9132924caf8a5b17789b40f79c", "name": "ArchiTester" },
+    "battlePass": { "level": 87, "progress": 42 },
+    "image": null,
+    "stats": {
+      "all": {
+        "overall": {
+          "score": 1203456, "scorePerMin": 29.93, "scorePerMatch": 385.72,
+          "wins": 412, "top3": 310, "top5": 205, "top6": 260, "top10": 980, "top12": 530, "top25": 1460,
+          "kills": 8540, "killsPerMin": 0.212, "killsPerMatch": 2.737,
+          "deaths": 2708, "kd": 3.154, "matches": 3120, "winRate": 13.205,
+          "minutesPlayed": 40210, "playersOutlived": 120534, "lastModified": "2026-11-01T21:14:03Z"
+        },
+        "solo": {
+          "score": 402110, "scorePerMin": 31.1, "scorePerMatch": 401.3,
+          "wins": 120, "top10": 980, "top25": 1460,
+          "kills": 2104, "killsPerMin": 0.16, "killsPerMatch": 2.1,
+          "deaths": 882, "kd": 2.385, "matches": 1002, "winRate": 11.976,
+          "minutesPlayed": 12930, "playersOutlived": 50211, "lastModified": "2026-11-01T21:14:03Z"
+        },
+        "duo": {
+          "score": 300120, "scorePerMin": 28.0, "scorePerMatch": 360.0,
+          "wins": 110, "top5": 205, "top12": 530,
+          "kills": 2210, "killsPerMin": 0.2, "killsPerMatch": 2.65,
+          "deaths": 724, "kd": 3.052, "matches": 834, "winRate": 13.189,
+          "minutesPlayed": 10710, "playersOutlived": 30120, "lastModified": "2026-10-30T18:02:11Z"
+        },
+        "trio": null,
+        "squad": {
+          "score": 450106, "scorePerMin": 30.2, "scorePerMatch": 390.0,
+          "wins": 152, "top3": 310, "top6": 260,
+          "kills": 3926, "killsPerMin": 0.26, "killsPerMatch": 3.4,
+          "deaths": 1002, "kd": 3.918, "matches": 1154, "winRate": 13.172,
+          "minutesPlayed": 14900, "playersOutlived": 38703, "lastModified": "2026-11-01T20:40:51Z"
+        },
+        "ltm": {
+          "score": 51120, "scorePerMin": 30.0, "scorePerMatch": 392.0,
+          "wins": 30,
+          "kills": 300, "killsPerMin": 0.18, "killsPerMatch": 2.3,
+          "deaths": 100, "kd": 3.0, "matches": 130, "winRate": 23.077,
+          "minutesPlayed": 1670, "playersOutlived": 1500, "lastModified": "2026-10-12T12:00:00Z"
+        }
+      },
+      "keyboardMouse": null,
+      "gamepad": null,
+      "touch": null
+    }
+  }
+}

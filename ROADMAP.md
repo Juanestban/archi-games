@@ -5,8 +5,9 @@ terminarla y actualiza **Estado actual**.
 
 ## Estado actual
 
-- **Hecho:** paso 1 (`core`) y paso 2 (`storage`).
-- **Siguiente:** paso 3 (tracker de Fortnite).
+- **Hecho:** pasos 1 (`core`) y 2 (`storage`); paso 3 (tracker de Fortnite) salvo el hito.
+- **Siguiente:** hito del paso 3 (el usuario lo prueba con su clave y una partida real
+  usando la consola de desarrollo); después, paso 4 (interfaz).
 - **Última actualización:** 2026-11-02.
 
 ## Fase 1: versión inicial con Fortnite
@@ -32,13 +33,14 @@ terminarla y actualiza **Estado actual**.
 - [x] Ruta de datos en `%APPDATA%\archi-games\archi-games.db` (crate `directories`)
 
 ### Paso 3: tracker de Fortnite
-- [ ] Trait `GameTracker` en `core`
-- [ ] Crate `crates/trackers/fortnite`: cliente de fortnite-api.com (`reqwest`)
-- [ ] Mapear las estadísticas de la API a `StatSnapshot` (overall→`all`, solo, duo, trio, squad, ltm)
-- [ ] Vincular cuenta por nombre de Epic, con aviso si las estadísticas no son públicas
-- [ ] Detectar el proceso solo por nombre (`sysinfo` refrescando únicamente nombres)
-- [ ] Consultas periódicas: 60 s con el juego abierto, ráfaga de unos 5 min al cerrar, 10–15 min sin el juego
-- [ ] Cliente simulado y tests con lecturas grabadas
+- [x] Trait `GameTracker` y `TrackError` en `core`
+- [x] Crate `crates/trackers/fortnite`: cliente de fortnite-api.com (`reqwest` con TLS nativo)
+- [x] Mapear las estadísticas de la API a `StatSnapshot` (overall→`all`, solo, duo, trio, squad, ltm)
+- [x] Vincular cuenta por nombre de Epic, con aviso si las estadísticas no son públicas
+- [x] Detectar el proceso solo por nombre (ToolHelp de Windows, sin abrir ningún proceso)
+- [x] Consultas periódicas (`Poller`): 60 s con el juego abierto, cada 30 s durante 5 min al cerrar, 12 min sin el juego
+- [x] Cliente simulado (`ReplayTracker`) y tests con lecturas grabadas y una respuesta real de ejemplo
+- [x] Consola de desarrollo: `key`, `link`, `status`, `poll`, `run`
 - [ ] **Hito:** un logro se desbloquea de verdad, comprobado en consola
 
 ### Paso 4: interfaz (egui) e i18n

@@ -13,9 +13,11 @@ código y no hookea nada. Los datos llegan de APIs públicas. Detalles en
 ## Estructura
 
 ```
-crates/core     motor de logros: definiciones, evaluación, XP y niveles
-crates/storage  SQLite: lecturas, desbloqueos, cuentas y ajustes
-crates/app      binario (de momento un esqueleto)
+crates/core               motor de logros: definiciones, evaluación, XP, niveles,
+                          trait GameTracker y cuándo consultar (Poller)
+crates/storage            SQLite: lecturas, desbloqueos, cuentas y ajustes
+crates/trackers/fortnite  cliente de fortnite-api.com
+crates/app                binario: consola de desarrollo hasta tener interfaz
 games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
 ```
@@ -44,6 +46,19 @@ completar el juego base.
 
 ```
 cargo test --workspace
+```
+
+## Probarlo con tu cuenta
+
+Necesitas una clave gratuita de [fortnite-api.com](https://dash.fortnite-api.com)
+y tener activado en Fortnite *Mostrar en la clasificación de carrera*.
+
+```
+cargo run -- key <tu-clave>
+cargo run -- link <tu-nombre-de-Epic>
+cargo run -- poll      # la primera consulta es la base: el progreso cuenta desde aquí
+cargo run              # se queda vigilando; juega una partida y espera al final
+cargo run -- status
 ```
 
 En Windows, `.cargo/config.toml` obliga a compilar las dependencias en C

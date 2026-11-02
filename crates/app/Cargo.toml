@@ -5,4 +5,10 @@ edition.workspace = true
 
 [dependencies]
 archi-core.workspace = true
+archi-fortnite.workspace = true
 archi-storage.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys.workspace = true

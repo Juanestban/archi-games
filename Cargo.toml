@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/app", "crates/core", "crates/storage", "crates/trackers/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -8,10 +8,14 @@ edition = "2024"
 
 [workspace.dependencies]
 archi-core = { path = "crates/core" }
+archi-fortnite = { path = "crates/trackers/fortnite" }
 archi-storage = { path = "crates/storage" }
 directories = "6"
+reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
 rusqlite = { version = "0.41", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt", "time"] }
 toml = "0.8"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp"] }
