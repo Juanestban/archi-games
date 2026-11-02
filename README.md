@@ -22,6 +22,12 @@ games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
 ```
 
+## Licencia
+
+A tu elección, [MIT](LICENSE-MIT) o [Apache-2.0](LICENSE-APACHE), igual que
+ArtCraft. Salvo que digas lo contrario, cualquier contribución se publica bajo
+esas mismas dos licencias.
+
 ## Créditos
 
 La interfaz parte del diseño de [ArtCraft](https://github.com/storytold/artcraft)
@@ -54,15 +60,21 @@ completar el juego base.
 cargo test --workspace
 ```
 
-## Instalador
+## Descargar e instalar
+
+En [Releases](https://github.com/Juanestban/archi-games/releases) está cada
+versión como instalador MSI (por usuario, sin administrador; se instala en
+`%LOCALAPPDATA%\Programs\Archi Games`) y como `.exe` portable. La app avisa de
+las versiones nuevas y se actualiza sola al pulsar **Actualizar**
+([ADR 0002](docs/adr/0002-actualizaciones-desde-github.md)).
+
+Para publicar una versión, ver [RELEASING.md](RELEASING.md). Para empaquetar
+en local:
 
 ```
 dotnet tool restore              # WiX 5, local al repositorio
-.\scripts\build-msi.ps1          # -> target\wix\ArchiGames-<versión>.msi
+.\scripts\package.ps1            # -> target\dist (MSI, portable y SHA256SUMS.txt)
 ```
-
-Se instala por usuario (sin administrador) en
-`%LOCALAPPDATA%\Programs\Archi Games`.
 
 ## Probarlo con tu cuenta
 

@@ -28,7 +28,8 @@ use crate::desktop::{self, SingleInstance};
 use crate::i18n::{I18n, LanguageChoice};
 use crate::sound::{self, Sounds};
 use crate::tray::{self, ShellEvent, Tray};
-use crate::worker::{self, Command, Event, Problem, Status};
+use crate::update;
+use crate::worker::{self, Command, Event, Problem, Status, UpdateInfo};
 
 const SIDEBAR_WIDTH: f32 = 236.0;
 const HEADER_HEIGHT: f32 = 52.0;
@@ -65,6 +66,27 @@ impl Screen {
       Self::Achievements => Icon::Trophy,
       Self::History => Icon::Clock,
       Self::Settings => Icon::Gear,
+    }
+  }
+}
+
+/// Where the self-update stands, for the banner and Settings > About.
+#[derive(Debug, Clone, PartialEq)]
+enum UpdateUi {
+  Idle,
+  Checking,
+  UpToDate,
+  Available(UpdateInfo),
+  Downloading(UpdateInfo, f32),
+  Installing,
+  Failed(Option<UpdateInfo>, Problem),
+}
+
+impl UpdateUi {
+  fn info(&self) -> Option<&UpdateInfo> {
+    match self {
+      Self::Available(info) | Self::Downloading(info, _) | Self::Failed(Some(info), _) => Some(info),
+      _ => None,
     }
   }
 }
@@ -117,6 +139,10 @@ pub struct ArchiApp {
   autostart_failed: bool,
   /// Started with Windows: hide on the first frame (eframe shows the window after it).
   start_hidden: bool,
+  update: UpdateUi,
+  auto_update: bool,
+  /// Set when the new version is starting: close on the next frame.
+  close_now: bool,
   _instance: SingleInstance,
 }
 
@@ -166,6 +192,9 @@ impl ArchiApp {
       autostart: desktop::autostart_enabled(desktop::AUTOSTART_ENTRY),
       autostart_failed: false,
       start_hidden,
+      update: UpdateUi::Idle,
+      auto_update: storage.setting(update::AUTO_CHECK_SETTING).ok().flatten().as_deref() != Some("false"),
+      close_now: false,
       _instance: instance,
       catalog,
       storage,
@@ -250,6 +279,19 @@ impl ArchiApp {
           self.reload();
         }
         Event::LinkFailed(problem) => self.link_result = Some(Err(problem)),
+        Event::UpdateAvailable(info) => self.update = UpdateUi::Available(info),
+        Event::UpToDate => self.update = UpdateUi::UpToDate,
+        Event::UpdateProgress(fraction) => {
+          if let Some(info) = self.update.info().cloned() {
+            self.update = UpdateUi::Downloading(info, fraction);
+          }
+        }
+        Event::UpdateFailed(problem) => self.update = UpdateUi::Failed(self.update.info().cloned(), problem),
+        Event::UpdateReady => {
+          self.update = UpdateUi::Installing;
+          self.quitting = true;
+          self.close_now = true;
+        }
       }
     }
   }
@@ -446,7 +488,62 @@ impl ArchiApp {
     ui.painter().galley(crumb.center() - galley.size() / 2.0, galley, theme::BG);
   }
 
+  /// A strip above the page while an update is available, downloading or failed.
+  fn update_banner(&mut self, ui: &mut Ui) {
+    let Some(info) = self.update.info().cloned() else {
+      if self.update != UpdateUi::Installing {
+        return;
+      }
+      let text = self.tr("ui-update-installing");
+      banner_frame().show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        widgets::hud(ui, &text, theme::ACCENT_INK);
+      });
+      return;
+    };
+    let mut action = None;
+    banner_frame().show(ui, |ui| {
+      ui.set_width(ui.available_width());
+      ui.horizontal(|ui| {
+        match &self.update {
+          UpdateUi::Downloading(_, fraction) => {
+            let percent = (fraction * 100.0).round() as u32;
+            widgets::hud(
+              ui,
+              &self.tr_args("ui-update-downloading", &[("version", info.version.as_str().into()), ("percent", percent.into())]),
+              theme::INK,
+            );
+            widgets::progress(ui, 220.0, 4.0, *fraction, theme::ACCENT);
+          }
+          UpdateUi::Failed(_, problem) => {
+            ui.label(RichText::new(self.tr(problem.token())).color(theme::BAD));
+          }
+          _ => {
+            widgets::hud(ui, &self.tr_args("ui-update-available", &[("version", info.version.as_str().into())]), theme::INK);
+          }
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+          if matches!(self.update, UpdateUi::Downloading(..)) {
+            return;
+          }
+          let install = if matches!(self.update, UpdateUi::Failed(..)) { "ui-update-retry" } else { "ui-update-install" };
+          if widgets::button(ui, &self.tr(install), widgets::Kind::Accent).clicked() {
+            action = Some(Command::InstallUpdate);
+          }
+          if widgets::button(ui, &self.tr("ui-update-notes"), widgets::Kind::Secondary).clicked() {
+            ui.ctx().open_url(egui::OpenUrl::new_tab(&info.page));
+          }
+        });
+      });
+    });
+    if let Some(command) = action {
+      self.update = UpdateUi::Downloading(info, 0.0);
+      self.worker.send(command);
+    }
+  }
+
   fn content(&mut self, ui: &mut Ui) {
+    self.update_banner(ui);
     let t = self.page_t(ui, PAGE_IN);
     ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
       Frame::NONE.inner_margin(Margin { left: 28, right: 28, top: 24, bottom: 28 }).show(ui, |ui| {
@@ -532,6 +629,13 @@ impl ArchiApp {
   }
 }
 
+fn banner_frame() -> Frame {
+  Frame::NONE
+    .fill(theme::fade(theme::ACCENT, 0.14))
+    .stroke(egui::Stroke::new(1.0, theme::fade(theme::ACCENT, 0.5)))
+    .inner_margin(Margin::symmetric(28, 10))
+}
+
 fn empty_summary(catalog: &Catalog) -> AccountSummary {
   AccountSummary { total_xp: 0, level: catalog.rules.level_for(0), by_tier: Default::default(), platinums: 0, game_unlocked: 0 }
 }
@@ -540,6 +644,9 @@ impl eframe::App for ArchiApp {
   fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     self.handle_events();
     self.handle_shell_events(ctx);
+    if std::mem::take(&mut self.close_now) {
+      ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+    }
     // The main window may be minimized or hidden while a game runs; the
     // notification window still needs `ui` to run.
     if self.notifier.is_active() {

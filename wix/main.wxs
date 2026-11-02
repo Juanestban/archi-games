@@ -1,7 +1,7 @@
 <!--
   Archi Games installer (WiX 5). Per-user: installs to %LOCALAPPDATA%\Programs\Archi Games
   with a Start menu shortcut and never asks for administrator rights (ADR 0001).
-  Built by scripts/build-msi.ps1, which passes Version, ExePath and IconPath.
+  Built by scripts/package.ps1, which passes Version, ExePath and IconPath.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
@@ -45,6 +45,12 @@
         <RegistryValue Root="HKCU" Key="Software\Archi Games" Name="shortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </ComponentGroup>
+
+    <!-- After an in-app update (msiexec ... LAUNCHAPP=1), start the new version. -->
+    <CustomAction Id="LaunchAfterUpdate" FileRef="ArchiGamesExe" ExeCommand="--after-update" Return="asyncNoWait" Impersonate="yes" Execute="immediate" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchAfterUpdate" After="InstallFinalize" Condition="LAUNCHAPP = 1 AND NOT REMOVE" />
+    </InstallExecuteSequence>
 
     <Feature Id="Main">
       <ComponentGroupRef Id="App" />

@@ -14,6 +14,7 @@ mod session;
 mod sound;
 mod tray;
 mod ui;
+mod update;
 mod worker;
 
 use std::error::Error;
@@ -37,7 +38,9 @@ fn main() -> ExitCode {
 fn run() -> Result<(), Box<dyn Error>> {
   // A second launch (e.g. the Start menu while it sits in the tray) shows the
   // running window instead.
-  let Some(instance) = desktop::SingleInstance::acquire("ArchiGames")? else { return Ok(()) };
+  update::clean_up();
+  let after_update = std::env::args().any(|arg| arg == update::AFTER_UPDATE_ARG);
+  let Some(instance) = acquire_instance(after_update)? else { return Ok(()) };
   // Started with Windows: straight to the tray.
   let background = std::env::args().any(|arg| arg == desktop::BACKGROUND_ARG);
   let catalog = Arc::new(Catalog::bundled()?);
@@ -72,4 +75,17 @@ fn run() -> Result<(), Box<dyn Error>> {
     }),
   )?;
   Ok(())
+}
+
+/// Right after an update the old version may still be closing: wait for it rather than hand
+/// over to it.
+fn acquire_instance(after_update: bool) -> std::io::Result<Option<desktop::SingleInstance>> {
+  let attempts = if after_update { 60 } else { 1 };
+  for attempt in 1..=attempts {
+    if let Some(instance) = desktop::SingleInstance::acquire_quietly("ArchiGames", attempt == attempts)? {
+      return Ok(Some(instance));
+    }
+    std::thread::sleep(std::time::Duration::from_millis(250));
+  }
+  Ok(None)
 }

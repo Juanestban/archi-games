@@ -18,6 +18,7 @@ use crate::catalog::Catalog;
 use crate::process;
 use crate::secrets;
 use crate::session::{Session, SessionError};
+use crate::update::{self, Install, Update, UpdateError, Updater};
 
 /// How often the process list is checked; polls follow the `PollPolicy`.
 const PROCESS_CHECK: Duration = Duration::from_secs(5);
@@ -25,10 +26,27 @@ const PROCESS_CHECK: Duration = Duration::from_secs(5);
 /// Wait after a rate limit that didn't say how long.
 const RATE_LIMIT_BACKOFF: Duration = Duration::from_secs(5 * 60);
 
+/// First automatic update check after start, then the interval between checks.
+const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(15);
+const UPDATE_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
+
 pub enum Command {
   SetApiKey(String),
   Link(String),
   PollNow,
+  /// `manual`: the player asked, so "up to date" and failures are reported too.
+  CheckUpdate {
+    manual: bool,
+  },
+  InstallUpdate,
+}
+
+/// A newer release, as the UI shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdateInfo {
+  pub version: String,
+  pub notes: String,
+  pub page: String,
 }
 
 pub enum Event {
@@ -38,6 +56,13 @@ pub enum Event {
   Unlocked(Vec<Unlock>),
   Linked,
   LinkFailed(Problem),
+  UpdateAvailable(UpdateInfo),
+  UpToDate,
+  /// Download progress, 0–1.
+  UpdateProgress(f32),
+  UpdateFailed(Problem),
+  /// The new version is starting: the app must quit now.
+  UpdateReady,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -61,6 +86,9 @@ pub enum Problem {
   Unexpected,
   Storage,
   Credentials,
+  Update,
+  /// The download didn't match the release's checksums; nothing was installed.
+  UpdateIntegrity,
 }
 
 impl Problem {
@@ -75,6 +103,8 @@ impl Problem {
       Self::Unexpected => "ui-error-unexpected",
       Self::Storage => "ui-error-storage",
       Self::Credentials => "ui-error-credentials",
+      Self::Update => "ui-error-update",
+      Self::UpdateIntegrity => "ui-error-update-integrity",
     }
   }
 }
@@ -167,7 +197,19 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
 
   let mut poller = Poller::new(PollPolicy::default());
   let mut force_poll = false;
+  let updater = Updater::new().ok();
+  let install = Install::detect();
+  let mut next_update_check = Instant::now() + UPDATE_FIRST_CHECK;
+  let mut pending_update: Option<Update> = None;
   loop {
+    if Instant::now() >= next_update_check {
+      next_update_check = Instant::now() + UPDATE_INTERVAL;
+      let auto = storage.setting(update::AUTO_CHECK_SETTING).ok().flatten().as_deref() != Some("false");
+      if auto && let Some(updater) = &updater {
+        check_update(updater, install, false, &mut pending_update, events).await;
+      }
+    }
+
     // ADR 0001: the process list by name only, never a handle to the game.
     let running = process::any_running(PROCESS_NAMES).unwrap_or(false);
     if running != status.game_running {
@@ -193,6 +235,15 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
     match command {
       None => {}
       Some(Command::PollNow) => force_poll = true,
+      Some(Command::CheckUpdate { manual }) => match &updater {
+        Some(updater) => check_update(updater, install, manual, &mut pending_update, events).await,
+        None => events.send(Event::UpdateFailed(Problem::Update)),
+      },
+      Some(Command::InstallUpdate) => {
+        if let (Some(updater), Some(update)) = (&updater, &pending_update) {
+          install_update(updater, update, events).await;
+        }
+      }
       Some(Command::SetApiKey(key)) => {
         let key = key.trim();
         match secrets::set_api_key(key) {
@@ -276,4 +327,39 @@ async fn poll(session: &mut Session<'_>, tracker: &FortniteTracker, poller: &mut
   }
   status.busy = false;
   events.status(status);
+}
+
+async fn check_update(updater: &Updater, install: Install, manual: bool, pending: &mut Option<Update>, events: &Events) {
+  match updater.check(install).await {
+    Ok(Some(update)) => {
+      events.send(Event::UpdateAvailable(UpdateInfo { version: update.version.to_string(), notes: update.notes.clone(), page: update.page.clone() }));
+      *pending = Some(update);
+    }
+    Ok(None) if manual => events.send(Event::UpToDate),
+    Ok(None) => {}
+    // Automatic checks fail quietly (offline, GitHub down); the next one retries.
+    Err(_) if manual => events.send(Event::UpdateFailed(Problem::Update)),
+    Err(_) => {}
+  }
+}
+
+/// Downloads, verifies and starts the new version. Only on the player's click (ADR 0002).
+async fn install_update(updater: &Updater, update: &Update, events: &Events) {
+  let last_percent = std::cell::Cell::new(-1);
+  let progress = |fraction: f32| {
+    let percent = (fraction * 100.0) as i32;
+    if percent != last_percent.replace(percent) {
+      events.send(Event::UpdateProgress(fraction));
+    }
+  };
+  events.send(Event::UpdateProgress(0.0));
+  let result = match updater.download(update, progress).await {
+    Ok(path) => update::apply(update, &path),
+    Err(error) => Err(error),
+  };
+  match result {
+    Ok(()) => events.send(Event::UpdateReady),
+    Err(UpdateError::Checksum) => events.send(Event::UpdateFailed(Problem::UpdateIntegrity)),
+    Err(_) => events.send(Event::UpdateFailed(Problem::Update)),
+  }
 }

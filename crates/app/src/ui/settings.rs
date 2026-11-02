@@ -5,6 +5,7 @@ use eframe::egui::{self, RichText, TextEdit, Ui};
 use super::{ArchiApp, theme, widgets};
 use crate::i18n::{Language, LanguageChoice};
 use crate::sound;
+use crate::update;
 use crate::worker::Command;
 
 const LANGUAGES: [LanguageChoice; 3] = [LanguageChoice::System, LanguageChoice::Fixed(Language::Es), LanguageChoice::Fixed(Language::En)];
@@ -19,6 +20,53 @@ impl ArchiApp {
     self.sound_settings(ui);
     self.system_settings(ui);
     self.language_settings(ui);
+    self.about_settings(ui);
+  }
+
+  fn about_settings(&mut self, ui: &mut Ui) {
+    let version = self.tr_args("ui-version", &[("version", env!("CARGO_PKG_VERSION").into())]);
+    let license = self.tr("ui-license");
+    let auto_label = self.tr("ui-update-auto");
+    let help = self.tr("ui-update-help");
+    let busy = matches!(self.update, super::UpdateUi::Checking | super::UpdateUi::Downloading(..) | super::UpdateUi::Installing);
+    let check = self.tr("ui-update-check");
+    let state = match &self.update {
+      super::UpdateUi::Checking => Some((self.tr("ui-update-checking"), theme::MUTED)),
+      super::UpdateUi::UpToDate => Some((self.tr("ui-update-latest"), theme::GOOD)),
+      super::UpdateUi::Available(info) => {
+        Some((self.tr_args("ui-update-available", &[("version", info.version.as_str().into())]), theme::ACCENT_INK))
+      }
+      super::UpdateUi::Failed(_, problem) => Some((self.tr(problem.token()), theme::BAD)),
+      _ => None,
+    };
+    let mut auto = self.auto_update;
+    let mut check_clicked = false;
+    block(ui, &self.tr("ui-settings-about"), |ui| {
+      ui.label(theme::heading(format!("Archi Games · {version}"), 18.0));
+      widgets::hud(ui, &license, theme::MUTED);
+      ui.add_space(8.0);
+      ui.horizontal(|ui| {
+        widgets::toggle(ui, &mut auto);
+        ui.label(theme::body(auto_label, 14.0, 500.0));
+      });
+      ui.label(theme::muted(help));
+      ui.add_space(4.0);
+      ui.horizontal(|ui| {
+        ui.add_enabled_ui(!busy, |ui| check_clicked = widgets::button(ui, &check, widgets::Kind::Secondary).clicked());
+        if let Some((text, color)) = state {
+          ui.label(RichText::new(text).color(color));
+        }
+      });
+    });
+    if auto != self.auto_update {
+      self.auto_update = auto;
+      // Not worth interrupting over: the choice still applies this session.
+      let _ = self.storage.set_setting(update::AUTO_CHECK_SETTING, if auto { "true" } else { "false" });
+    }
+    if check_clicked {
+      self.update = super::UpdateUi::Checking;
+      self.worker.send(Command::CheckUpdate { manual: true });
+    }
   }
 
   fn system_settings(&mut self, ui: &mut Ui) {

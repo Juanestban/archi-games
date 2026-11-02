@@ -30,7 +30,13 @@ mod imp {
 
   impl SingleInstance {
     /// `None` if another instance already runs; it has been asked to show its window.
+    #[cfg(test)]
     pub fn acquire(name: &str) -> io::Result<Option<Self>> {
+      Self::acquire_quietly(name, true)
+    }
+
+    /// Like `acquire`, but only asks the running instance to show itself if `hand_over`.
+    pub fn acquire_quietly(name: &str, hand_over: bool) -> io::Result<Option<Self>> {
       let mutex_name = wide(&format!("Local\\{name}.Instance"));
       let show_name = wide(&format!("Local\\{name}.Show"));
       // SAFETY: valid NUL-terminated names; handles are checked and owned by `Self`.
@@ -41,7 +47,7 @@ mod imp {
         }
         if GetLastError() == ERROR_ALREADY_EXISTS {
           CloseHandle(mutex);
-          let show = OpenEventW(EVENT_MODIFY_STATE, 0, show_name.as_ptr());
+          let show = if hand_over { OpenEventW(EVENT_MODIFY_STATE, 0, show_name.as_ptr()) } else { ptr::null_mut() };
           if !show.is_null() {
             SetEvent(show);
             CloseHandle(show);
@@ -139,7 +145,7 @@ mod imp {
   pub struct SingleInstance;
 
   impl SingleInstance {
-    pub fn acquire(_name: &str) -> io::Result<Option<Self>> {
+    pub fn acquire_quietly(_name: &str, _hand_over: bool) -> io::Result<Option<Self>> {
       Ok(Some(Self))
     }
 

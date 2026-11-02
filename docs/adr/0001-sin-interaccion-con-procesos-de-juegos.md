@@ -34,7 +34,9 @@ Reglas obligatorias. Cualquier función nueva que las rompa se rechaza.
 6. Inicio con el sistema solo mediante `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`:
    sin servicios ni tareas programadas ocultas.
 7. Sin empaquetadores (UPX), ofuscación ni descarga y ejecución de código. La
-   red solo va a las APIs configuradas.
+   red solo va a las APIs configuradas y a las releases del propio proyecto en
+   GitHub. Única excepción: la actualización de la propia app, con las
+   garantías del [ADR 0002](0002-actualizaciones-desde-github.md).
 8. Datos en `%APPDATA%\archi-games`. Se distribuye con un instalador MSI
    estándar y, a medio plazo, con el ejecutable firmado.
 

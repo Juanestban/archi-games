@@ -11,8 +11,10 @@ terminarla y actualiza **Estado actual**.
   La cuenta del usuario ya está vinculada y tiene su lectura base.
 - **Pendiente del paso 3:** el hito. Tras la próxima partida real del usuario, el
   desbloqueo debe verse en Perfil e Historial.
-- **Siguiente:** que el usuario pruebe el MSI y el hito del paso 3 con una partida real;
-  después, la fase 2.
+- **Además:** actualizaciones desde GitHub Releases (ADR 0002), licencia MIT o Apache-2.0 y
+  releases automáticas al subir un tag `vX.Y.Z` (ver `RELEASING.md`).
+- **Siguiente:** que el usuario publique la primera release (`v0.1.0`), pruebe el MSI y el hito
+  del paso 3 con una partida real; después, la fase 2.
 - **Última actualización:** 2026-11-02.
 
 ## Fase 1: versión inicial con Fortnite
@@ -79,7 +81,14 @@ terminarla y actualiza **Estado actual**.
 - [x] Inicio con Windows vía `HKCU\...\Run`, como interruptor en Ajustes (arranca en la bandeja con `--background`)
 - [x] Instancia única (mutex con nombre); una segunda ejecución muestra la ventana de la primera
 - [x] Icono propio (dibujado en código) en ventana, bandeja y `.exe`, con nombre y versión en el ejecutable
-- [x] Instalador MSI por usuario con WiX 5 (`scripts/build-msi.ps1`), sin permisos de administrador
+- [x] Instalador MSI por usuario con WiX 5 (`scripts/package.ps1`), sin permisos de administrador
+
+### Actualizaciones y releases ✅
+- [x] Licencia doble MIT o Apache-2.0 (`LICENSE-MIT`, `LICENSE-APACHE`)
+- [x] Comprobar la última release de GitHub al arrancar y cada 6 h (desactivable), y desde Ajustes
+- [x] Aviso en la app con novedades; descarga verificada con SHA-256 e instalación al pulsar Actualizar
+- [x] Versión instalada: MSI por usuario que arranca la nueva versión al terminar; portable: se reemplaza a sí misma
+- [x] GitHub Actions: CI (formato, clippy, tests) y release al subir un tag (MSI, portable y `SHA256SUMS.txt`)
 
 ## Fase 2
 
@@ -89,7 +98,8 @@ terminarla y actualiza **Estado actual**.
   abierto). Ninguna API da los cofres; ver DESIGN, "Pendiente de investigar"
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
-- [ ] Firmar el ejecutable
+- [ ] Firmar el ejecutable y el MSI, y verificar la firma al actualizar (ADR 0002)
+- [ ] Al desinstalar, quitar la entrada de inicio con Windows
 
 ## Ideas futuras (sin decidir)
 

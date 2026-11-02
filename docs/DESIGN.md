@@ -194,6 +194,26 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   usuario activó el inicio con Windows; conviene desactivarlo antes. Firmar el
   ejecutable sigue en la fase 2.
 
+### Actualizaciones y releases
+
+- **Como ArtCraft:** la app consulta la última release de GitHub, avisa con una
+  franja sobre el contenido (novedades y botón Actualizar) y se actualiza sola.
+  Reglas de seguridad en el [ADR 0002](adr/0002-actualizaciones-desde-github.md).
+- **Cuándo comprueba:** 15 s después de arrancar y cada 6 h, si está activado
+  en Ajustes > Acerca de (por defecto sí); también con "Buscar
+  actualizaciones". Las comprobaciones automáticas fallan en silencio.
+- **Qué descarga:** si el `.exe` está en `%LOCALAPPDATA%\Programs\Archi Games`
+  (instalado con el MSI), el MSI nuevo, que se instala sin administrador y
+  arranca la versión nueva (`LAUNCHAPP=1`); si no, el `.exe` portable, que
+  reemplaza al actual. La versión nueva arranca con `--after-update` y espera
+  a que la anterior cierre antes de tomar la instancia única.
+- **Versiones:** `vX.Y.Z` estrictas; las pre-releases no se ofrecen.
+- **Releases:** las publica GitHub Actions al subir un tag que coincida con
+  `Cargo.toml` (ver `RELEASING.md`). Nombres fijos de los archivos, porque el
+  actualizador los busca por ellos.
+- **Licencia:** MIT o Apache-2.0, a elección de quien use el código, igual que
+  ArtCraft.
+
 ## 3. Modelo de logros
 
 - **Rangos y XP** (puntos de trofeo de PlayStation): bronce 15, plata 30,
