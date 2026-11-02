@@ -171,11 +171,17 @@ impl ArchiApp {
     let when = self.status.last_poll.map_or_else(|| self.tr("ui-never"), |at| self.when(at));
     let last_poll = self.tr_args("ui-last-poll", &[("when", when.into())]);
     let problem = self.status.problem.map(|problem| self.tr(problem.token()));
+    let replays = if self.status.replays > 0 {
+      (self.tr_args("ui-replays-count", &[("count", self.status.replays.into())]), theme::MUTED)
+    } else {
+      (self.tr("ui-replays-none"), theme::FAINT)
+    };
     let button = if self.status.busy { self.tr("ui-busy") } else { self.tr("ui-poll-now") };
     let can_poll = !self.status.busy && self.status.has_api_key && self.account.is_some();
     block(ui, &self.tr("ui-settings-tracking"), |ui| {
       ui.label(running);
       widgets::hud(ui, &last_poll, theme::MUTED);
+      ui.label(RichText::new(replays.0).color(replays.1));
       if let Some(problem) = problem {
         ui.label(RichText::new(problem).color(theme::BAD));
       }

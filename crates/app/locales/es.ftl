@@ -114,3 +114,9 @@ ui-update-latest = Tienes la última versión.
 ui-update-help = Las versiones nuevas vienen de las releases del proyecto en GitHub, se verifican con SHA-256 y solo se instalan cuando pulsas Actualizar.
 ui-error-update = No se pudo comprobar o descargar la actualización.
 ui-error-update-integrity = La descarga no coincide con su suma SHA-256; no se ha instalado nada.
+
+ui-replays-count = { $count ->
+    [one] 1 repetición analizada (logros del paquete Repeticiones).
+   *[other] { $count } repeticiones analizadas (logros del paquete Repeticiones).
+}
+ui-replays-none = Ninguna repetición analizada todavía. Para los logros del paquete Repeticiones, activa en Fortnite Ajustes > Juego > Grabar repeticiones (solo PC).

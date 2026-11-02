@@ -16,6 +16,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 use crate::catalog::Catalog;
 use crate::process;
+use crate::replays;
 use crate::secrets;
 use crate::session::{Session, SessionError};
 use crate::update::{self, Install, Update, UpdateError, Updater};
@@ -25,6 +26,11 @@ const PROCESS_CHECK: Duration = Duration::from_secs(5);
 
 /// Wait after a rate limit that didn't say how long.
 const RATE_LIMIT_BACKOFF: Duration = Duration::from_secs(5 * 60);
+
+/// How often finished replays are looked for while the game is closed, and the wait after it
+/// closes (the last replay is still being saved).
+const REPLAY_SCAN: Duration = Duration::from_secs(2 * 60);
+const REPLAY_AFTER_EXIT: Duration = Duration::from_secs(35);
 
 /// First automatic update check after start, then the interval between checks.
 const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(15);
@@ -72,6 +78,8 @@ pub struct Status {
   pub last_poll: Option<Timestamp>,
   pub busy: bool,
   pub problem: Option<Problem>,
+  /// Replays read for the linked account so far.
+  pub replays: u32,
 }
 
 /// Something the user may need to act on, shown translated.
@@ -201,6 +209,7 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
   let install = Install::detect();
   let mut next_update_check = Instant::now() + UPDATE_FIRST_CHECK;
   let mut pending_update: Option<Update> = None;
+  let mut next_replay_scan = Instant::now();
   loop {
     if Instant::now() >= next_update_check {
       next_update_check = Instant::now() + UPDATE_INTERVAL;
@@ -215,6 +224,17 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
     if running != status.game_running {
       status.game_running = running;
       events.status(&status);
+      if !running {
+        next_replay_scan = Instant::now() + REPLAY_AFTER_EXIT;
+      }
+    }
+    // ADR 0001: replays only while the game is closed.
+    if !running
+      && Instant::now() >= next_replay_scan
+      && let Some(session) = &mut session
+    {
+      next_replay_scan = Instant::now() + REPLAY_SCAN;
+      scan_replays(&storage, session, &mut status, events);
     }
 
     let due = poller.poll_due(running, Instant::now());
@@ -361,5 +381,38 @@ async fn install_update(updater: &Updater, update: &Update, events: &Events) {
     Ok(()) => events.send(Event::UpdateReady),
     Err(UpdateError::Checksum) => events.send(Event::UpdateFailed(Problem::UpdateIntegrity)),
     Err(_) => events.send(Event::UpdateFailed(Problem::Update)),
+  }
+}
+
+/// Reads the replays finished since the account was linked that weren't read yet.
+fn scan_replays(storage: &Storage, session: &mut Session<'_>, status: &mut Status, events: &Events) {
+  let since = storage.account(GAME_ID).ok().flatten().map_or(0, |account| account.linked_at);
+  // No folder yet means replays were never recorded: nothing to do.
+  let found = replays::demos_dir().and_then(|dir| replays::finished(&dir, since, unix_now()).ok()).unwrap_or_default();
+  let mut read_any = false;
+  for candidate in found {
+    if storage.replay_seen(GAME_ID, &candidate.name, candidate.size).unwrap_or(true) {
+      continue;
+    }
+    match session.record_replay(replays::read(&candidate), unix_now()) {
+      Ok(unlocks) => {
+        read_any = true;
+        if !unlocks.is_empty() {
+          events.send(Event::Unlocked(unlocks));
+        }
+      }
+      Err(_) => {
+        status.problem = Some(Problem::Storage);
+        break;
+      }
+    }
+  }
+  if read_any {
+    events.send(Event::Progress(session.progress().clone()));
+  }
+  let count = storage.replay_count(GAME_ID, session.account_id()).unwrap_or(status.replays);
+  if count != status.replays {
+    status.replays = count;
+    events.status(status);
   }
 }

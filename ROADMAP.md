@@ -13,8 +13,12 @@ terminarla y actualiza **Estado actual**.
   desbloqueo debe verse en Perfil e Historial.
 - **Además:** actualizaciones desde GitHub Releases (ADR 0002), licencia MIT o Apache-2.0 y
   releases automáticas al subir un tag `vX.Y.Z` (ver `RELEASING.md`).
-- **Siguiente:** que el usuario publique la primera release (`v0.1.0`), pruebe el MSI y el hito
-  del paso 3 con una partida real; después, la fase 2.
+- **Publicado:** [v0.2.0](https://github.com/Juanestban/archi-games/releases/tag/v0.2.0) (MSI, portable y
+  `SHA256SUMS.txt`), comprobado: sumas correctas y el actualizador la descarga y verifica.
+- **En curso:** fase 2. Hecho: lector de repeticiones y paquete "Repeticiones" con 7 logros.
+  Falta validarlo con un `.replay` real del usuario (debe activar Grabar repeticiones).
+- **Siguiente:** con repeticiones reales, comprobar el lector y la unidad de la distancia; después,
+  logros por tipo de arma. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-02.
 
 ## Fase 1: versión inicial con Fortnite
@@ -92,10 +96,13 @@ terminarla y actualiza **Estado actual**.
 
 ## Fase 2
 
-- [ ] Analizar los `.replay` de Fortnite en solo lectura, para logros por partida más finos
-- [ ] Logros de cofres abiertos (10, 50, 100, 250, 500, 1000) en un `pack` aparte, **solo si** las
-  repeticiones permiten atribuir cada cofre al jugador (posición del jugador cuando el cofre pasa a
-  abierto). Ninguna API da los cofres; ver DESIGN, "Pendiente de investigar"
+- [x] Leer los `.replay` de Fortnite en solo lectura: estadísticas de fin de partida y puesto
+  (`archi_fortnite::replay`), con Fortnite cerrado y solo las posteriores a vincular la cuenta
+- [x] Paquete "Repeticiones" (modo `replay`): Demoledor, Ángel de la guarda, Maratonista, Leñador,
+  Arquitecto, Ojo de halcón e Intocable (secreto); no cuenta para el platino
+- [x] Ajustes muestra cuántas repeticiones se han leído o cómo activarlas
+- [ ] Validar el lector con repeticiones reales del usuario (y la unidad de la distancia)
+- [ ] Logros por tipo de arma (eventos `playerElim`): averiguar qué número es cada arma
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
 - [ ] Firmar el ejecutable y el MSI, y verificar la firma al actualizar (ADR 0002)
@@ -105,3 +112,6 @@ terminarla y actualiza **Estado actual**.
 
 - Servidor online: perfiles, amigos, rareza global de logros, anti-trampas
 - SDK para que otros desarrolladores integren sus juegos
+- Logros de cofres abiertos (10, 50, 100, 250, 500, 1000): no están en los eventos de las
+  repeticiones, solo en sus datos de red (replicación de Unreal); leerlos es un proyecto propio
+  que se rompería en cada temporada

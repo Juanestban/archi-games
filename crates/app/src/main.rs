@@ -9,6 +9,7 @@ mod desktop;
 mod i18n;
 mod icon;
 mod process;
+mod replays;
 mod secrets;
 mod session;
 mod sound;

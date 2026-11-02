@@ -1,8 +1,14 @@
 //! A linked account's live session: rebuilds progress from history at
-//! startup, then turns each poll into stored unlocks.
+//! startup, then turns each poll and each local match file into stored unlocks.
+//!
+//! Local match files (replays) add to the `replay` mode. Those totals are merged into every
+//! API poll too, so the mode never reads as a drop between two polls.
+
+use std::collections::BTreeMap;
 
 use archi_core::{GameDefinition, GameProgress, GameTracker, Progression, StatSnapshot, TrackError};
-use archi_storage::{Storage, StorageError, Timestamp, Unlock, unix_now};
+use archi_fortnite::replay::REPLAY_MODE;
+use archi_storage::{ReplayFile, Storage, StorageError, Timestamp, Unlock, unix_now};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -20,6 +26,8 @@ pub struct Session<'a> {
   rules: &'a Progression,
   account_id: String,
   progress: GameProgress,
+  /// Every read replay's stats, summed.
+  replay_totals: BTreeMap<String, u64>,
 }
 
 impl<'a> Session<'a> {
@@ -34,7 +42,40 @@ impl<'a> Session<'a> {
   ) -> Result<(Self, Vec<Unlock>), StorageError> {
     let (progress, mut unlocks) = storage.rebuild_progress(game, account_id)?;
     unlocks.extend(storage.evaluate_platform(platform, &[game], rules, unix_now())?);
-    Ok((Self { storage, game, platform, rules, account_id: account_id.to_owned(), progress }, unlocks))
+    let replay_totals = storage.replay_totals(&game.game.id, account_id)?;
+    Ok((Self { storage, game, platform, rules, account_id: account_id.to_owned(), progress, replay_totals }, unlocks))
+  }
+
+  pub fn account_id(&self) -> &str {
+    &self.account_id
+  }
+
+  fn with_replays(totals: &BTreeMap<String, u64>, mut snapshot: StatSnapshot) -> StatSnapshot {
+    for (stat, &value) in totals {
+      snapshot.set(REPLAY_MODE, stat, value);
+    }
+    snapshot
+  }
+
+  /// Adds a local match file: a new snapshot (the last API stats plus the new replay totals)
+  /// stored together with the file, so it counts exactly once. A file without stats is only
+  /// marked as read.
+  pub fn record_replay(&mut self, file: ReplayFile, at: Timestamp) -> Result<Vec<Unlock>, StorageError> {
+    let Some(stats) = &file.stats else {
+      self.storage.skip_replay(&self.game.game.id, &self.account_id, &file, at)?;
+      return Ok(Vec::new());
+    };
+    let mut totals = self.replay_totals.clone();
+    for (stat, value) in stats {
+      *totals.entry(stat.clone()).or_insert(0) += value;
+    }
+    let snapshot = Self::with_replays(&totals, self.progress.last.clone().unwrap_or_default());
+    let mut unlocks = self.storage.ingest_replay(self.game, &self.account_id, &mut self.progress, snapshot, &file, at)?;
+    self.replay_totals = totals;
+    if !unlocks.is_empty() {
+      unlocks.extend(self.storage.evaluate_platform(self.platform, &[self.game], self.rules, at)?);
+    }
+    Ok(unlocks)
   }
 
   pub fn progress(&self) -> &GameProgress {
@@ -52,7 +93,7 @@ impl<'a> Session<'a> {
   }
 
   pub async fn poll(&mut self, tracker: &impl GameTracker) -> Result<Vec<Unlock>, SessionError> {
-    let snapshot = tracker.fetch(&self.account_id).await?;
+    let snapshot = Self::with_replays(&self.replay_totals, tracker.fetch(&self.account_id).await?);
     Ok(self.record(snapshot, unix_now())?)
   }
 }
@@ -114,6 +155,35 @@ mod tests {
 
   fn ids(unlocks: &[Unlock]) -> Vec<&str> {
     unlocks.iter().map(|u| u.achievement_id.as_str()).collect()
+  }
+
+  fn replay(name: &str, damage: u64, damage_taken: u64, won: bool) -> ReplayFile {
+    let stats = [("matches", 1), ("wins", u64::from(won)), ("damage", damage), ("damage_taken", damage_taken), ("accuracy", 20), ("eliminations", 1)];
+    ReplayFile { file_name: name.into(), file_size: 10, stats: Some(stats.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()) }
+  }
+
+  #[tokio::test]
+  async fn replays_unlock_match_achievements_and_survive_api_polls() {
+    let (fortnite, platform) = definitions();
+    let rules = Progression::default();
+    let storage = Storage::open_in_memory().unwrap();
+    let (mut session, _) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    let tracker = ReplayTracker::new([Ok(totals(10, 0, 5)), Ok(totals(10, 0, 5))]);
+    session.poll(&tracker).await.unwrap();
+
+    assert_eq!(ids(&session.record_replay(replay("1.replay", 1200, 30, false), 2).unwrap()), ["demolisher"]);
+    // An API poll in between must not reset the replay totals...
+    assert!(session.poll(&tracker).await.unwrap().is_empty());
+    // ...so the next replay is again exactly one match: a win without taking damage.
+    assert_eq!(ids(&session.record_replay(replay("2.replay", 100, 0, true), 3).unwrap()), ["untouchable"]);
+    // A file without stats is only marked as read.
+    let empty = ReplayFile { file_name: "3.replay".into(), file_size: 10, stats: None };
+    assert!(session.record_replay(empty, 4).unwrap().is_empty());
+    assert!(storage.replay_seen("fortnite", "3.replay", 10).unwrap());
+
+    // Restarting rebuilds the same totals.
+    let (session, _) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    assert_eq!(session.replay_totals["damage"], 1300);
   }
 
   #[tokio::test]

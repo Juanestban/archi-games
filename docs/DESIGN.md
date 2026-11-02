@@ -304,13 +304,48 @@ instalador MSI y, a medio plazo, ejecutable firmado.
 - Con él se prueban `total`, `match`, `streak`, el platino y la XP sin
   depender de Fortnite.
 
+### Repeticiones (fase 2, decidido con el usuario)
+
+- **Fuente:** los `.replay` que Fortnite guarda en PC en
+  `%LOCALAPPDATA%\FortniteGame\Saved\Demos` si el jugador activa *Ajustes >
+  Juego > Grabar repeticiones*. Las partidas en consola no generan repeticiones,
+  así que estos logros son solo de PC.
+- **Qué se lee:** solo la cabecera y los eventos `AthenaMatchStats`
+  (precisión, asistencias, eliminaciones, daño con armas y otro daño,
+  reanimaciones, daño recibido, daño a estructuras, materiales recogidos y
+  usados, distancia) y `AthenaMatchTeamStats` (puesto). Los datos de red se
+  saltan sin interpretarlos. Los eventos van cifrados con AES-256-ECB con una
+  clave que está en el propio archivo. Formato según FortniteReplayDecompressor
+  (MIT).
+- **Cuándo:** con Fortnite cerrado, cada 2 min y unos 35 s después de cerrarlo;
+  solo archivos sin modificar en 30 s, en modo solo lectura (ADR 0001). Solo
+  cuentan las repeticiones posteriores a vincular la cuenta. Cada archivo
+  (nombre y tamaño) se lee una vez; uno ilegible o sin estadísticas se marca
+  como leído sin sumar nada.
+- **En el motor:** cada repetición suma al modo `replay` de las lecturas de
+  Fortnite (`matches`, `wins` si quedó 1.º, `eliminations`, `assists`, `damage`,
+  `other_damage`, `damage_taken`, `structure_damage`, `revives`,
+  `materials_gathered`, `materials_used`, `distance_m`, `accuracy` en % entero).
+  Los totales se suman también a cada lectura de la API, para que el modo no
+  "baje" entre consultas. Así `total`, `match` y `streak` funcionan sin cambios.
+  El archivo y su lectura se guardan en la misma transacción (tabla `replays`).
+- **Distancia:** el formato no documenta su unidad. Si una partida supera
+  50 000 se toma como centímetros (nadie recorre 50 km en una partida); se
+  confirmará con repeticiones reales.
+- **Cuenta:** las repeticiones de este PC cuentan para la cuenta vinculada; si
+  otra persona juega en el mismo PC con otra cuenta, sus partidas también
+  sumarían.
+- **Paquete `replays`:** no cuenta para el platino, para que quien juega en
+  consola pueda completar el juego base.
+- **Fuera por ahora:** cofres (solo en los datos de red, ver Ideas futuras) y
+  logros por tipo de arma (los números de arma de `playerElim` cambian entre
+  temporadas; se harán con repeticiones reales).
+
 ## Pendiente de investigar
 
 - Límites de peticiones de fortnite-api.com: no están documentados; se respeta `429`/`Retry-After`.
-- Formato de los `.replay` de Fortnite (fase 2). En concreto, para los logros de
-  cofres: si registran el momento en que cada cofre pasa a abierto y la posición
-  del jugador, para atribuirle el cofre por proximidad. Solo sirve en PC con las
-  repeticiones activadas; las partidas en consola no contarían.
+- Unidad de la distancia de las repeticiones y números de arma de `playerElim`,
+  con repeticiones reales.
 - **Descartado:** detectar cofres leyendo el teclado (cuánto se mantiene pulsada
   la tecla de interactuar). Es un hook global de teclado, prohibido por el
   ADR 0001 y típico de keyloggers. Además no es fiable: puertas, munición,

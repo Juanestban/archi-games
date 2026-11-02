@@ -67,3 +67,63 @@ id = "platinum"
 name = "fortnite-platinum-name"
 description = "fortnite-platinum-desc"
 tier = "platinum"
+
+# Paquete "replays": datos de las repeticiones de PC (Ajustes > Juego > Grabar
+# repeticiones), en el modo "replay". No cuenta para el platino.
+
+[[achievement]]
+id = "demolisher"
+name = "fortnite-demolisher-name"
+description = "fortnite-demolisher-desc"
+tier = "gold"
+pack = "replays"
+condition = { type = "match", mode = "replay", all = [{ stat = "damage", gte = 1000 }] }
+
+[[achievement]]
+id = "guardian_angel"
+name = "fortnite-guardian_angel-name"
+description = "fortnite-guardian_angel-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "revives", target = 25 }
+
+[[achievement]]
+id = "marathoner"
+name = "fortnite-marathoner-name"
+description = "fortnite-marathoner-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "distance_m", target = 100000 }
+
+[[achievement]]
+id = "lumberjack"
+name = "fortnite-lumberjack-name"
+description = "fortnite-lumberjack-desc"
+tier = "bronze"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "materials_gathered", target = 100000 }
+
+[[achievement]]
+id = "architect"
+name = "fortnite-architect-name"
+description = "fortnite-architect-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "materials_used", target = 50000 }
+
+[[achievement]]
+id = "hawkeye"
+name = "fortnite-hawkeye-name"
+description = "fortnite-hawkeye-desc"
+tier = "gold"
+pack = "replays"
+condition = { type = "match", mode = "replay", all = [{ stat = "accuracy", gte = 50 }, { stat = "eliminations", gte = 5 }] }
+
+[[achievement]]
+id = "untouchable"
+name = "fortnite-untouchable-name"
+description = "fortnite-untouchable-desc"
+tier = "gold"
+hidden = true
+pack = "replays"
+condition = { type = "match", mode = "replay", all = [{ stat = "wins", eq = 1 }, { stat = "damage_taken", eq = 0 }] }

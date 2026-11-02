@@ -114,3 +114,9 @@ ui-update-latest = You're on the latest version.
 ui-update-help = New versions come from the project's GitHub releases, are verified with SHA-256 and only install when you click Update.
 ui-error-update = Couldn't check for or download the update.
 ui-error-update-integrity = The download doesn't match its SHA-256 checksum; nothing was installed.
+
+ui-replays-count = { $count ->
+    [one] 1 replay read (Replays pack achievements).
+   *[other] { $count } replays read (Replays pack achievements).
+}
+ui-replays-none = No replays read yet. For the Replays pack achievements, turn on Settings > Game > Record Replays in Fortnite (PC only).

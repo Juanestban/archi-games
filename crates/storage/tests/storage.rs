@@ -220,3 +220,36 @@ fn summary_ignores_achievements_removed_from_definitions() {
   let summary = storage.account_summary(&[&game("")], &Progression::default()).unwrap();
   assert_eq!(summary.total_xp, 0);
 }
+
+#[test]
+fn replays_count_once_and_their_totals_add_up() {
+  let storage = Storage::open_in_memory().unwrap();
+  let definition = game("");
+  let mut progress = GameProgress::default();
+  storage.ingest(&definition, "acc", &mut progress, wins(0), 1).unwrap();
+
+  let replay = |name: &str, damage: u64| archi_storage::ReplayFile {
+    file_name: name.into(),
+    file_size: 1000,
+    stats: Some([("damage".to_owned(), damage), ("matches".to_owned(), 1)].into()),
+  };
+  let first = replay("a.replay", 300);
+  assert!(!storage.replay_seen("test", "a.replay", 1000).unwrap());
+  let snapshot = wins(0).with("replay", MATCHES, 1).with("replay", "damage", 300);
+  storage.ingest_replay(&definition, "acc", &mut progress, snapshot, &first, 2).unwrap();
+  assert!(storage.replay_seen("test", "a.replay", 1000).unwrap());
+  assert!(!storage.replay_seen("test", "a.replay", 2000).unwrap(), "same name, other match");
+
+  let snapshot = wins(0).with("replay", MATCHES, 2).with("replay", "damage", 750);
+  storage.ingest_replay(&definition, "acc", &mut progress, snapshot, &replay("b.replay", 450), 3).unwrap();
+  // Read again by mistake: ignored, the totals don't move.
+  storage.skip_replay("test", "acc", &first, 4).unwrap();
+  storage.skip_replay("test", "acc", &replay("broken.replay", 0), 4).unwrap();
+
+  let totals = storage.replay_totals("test", "acc").unwrap();
+  assert_eq!(totals["damage"], 750);
+  assert_eq!(totals["matches"], 2);
+  assert_eq!(storage.replay_count("test", "acc").unwrap(), 2);
+  assert!(storage.replay_totals("test", "other").unwrap().is_empty(), "per account");
+  assert_eq!(storage.snapshots("test", "acc").unwrap().len(), 3);
+}

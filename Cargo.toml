@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Juanestban/archi-games"
 
 [workspace.dependencies]
+aes = "0.8"
 archi-core = { path = "crates/core" }
 archi-fortnite = { path = "crates/trackers/fortnite" }
 archi-storage = { path = "crates/storage" }

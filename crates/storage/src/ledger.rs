@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use archi_core::{GameDefinition, GameProgress, LevelInfo, MODE_ALL, Progression, StatSnapshot, Tier};
 
-use crate::{Result, Storage, Timestamp};
+use crate::{ReplayFile, Result, Storage, Timestamp};
 
 /// Game id of the platform's own definition (`games/platform`).
 pub const PLATFORM_ID: &str = "platform";
@@ -85,17 +85,46 @@ impl Storage {
     if progress.last.as_ref() == Some(&snapshot) {
       return Ok(Vec::new());
     }
-    let game_id = &definition.game.id;
     let tx = self.conn.unchecked_transaction()?;
-    self.record_snapshot(game_id, account_id, &snapshot, at)?;
+    let unlocked = self.apply_snapshot(definition, account_id, progress, snapshot, at)?;
+    tx.commit()?;
+    Ok(unlocked)
+  }
 
+  /// Like [`ingest`](Self::ingest), for a snapshot that adds a local match file's stats: the
+  /// file is marked read in the same transaction, so it counts exactly once.
+  pub fn ingest_replay(
+    &self,
+    definition: &GameDefinition,
+    account_id: &str,
+    progress: &mut GameProgress,
+    snapshot: StatSnapshot,
+    replay: &ReplayFile,
+    at: Timestamp,
+  ) -> Result<Vec<Unlock>> {
+    let tx = self.conn.unchecked_transaction()?;
+    self.insert_replay(&definition.game.id, account_id, replay, at)?;
+    let unlocked = self.apply_snapshot(definition, account_id, progress, snapshot, at)?;
+    tx.commit()?;
+    Ok(unlocked)
+  }
+
+  fn apply_snapshot(
+    &self,
+    definition: &GameDefinition,
+    account_id: &str,
+    progress: &mut GameProgress,
+    snapshot: StatSnapshot,
+    at: Timestamp,
+  ) -> Result<Vec<Unlock>> {
+    let game_id = &definition.game.id;
+    self.record_snapshot(game_id, account_id, &snapshot, at)?;
     let mut unlocked = Vec::new();
     for achievement in progress.apply(definition, snapshot) {
       if self.insert_unlock(game_id, &achievement.id, at)? {
         unlocked.push(unlock(definition, &achievement.id, achievement.tier, at));
       }
     }
-    tx.commit()?;
     Ok(unlocked)
   }
 

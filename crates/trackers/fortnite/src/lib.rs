@@ -3,6 +3,7 @@
 //! Stats only change when a match ends, so unlocks happen after each match.
 
 mod api;
+pub mod replay;
 
 use std::time::Duration;
 

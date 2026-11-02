@@ -2,6 +2,7 @@
 //! settings. [`ledger`] ties it to the `core` engine.
 
 mod ledger;
+mod replays;
 mod schema;
 
 use std::collections::BTreeSet;
@@ -14,6 +15,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
 pub use ledger::{AccountSummary, PLATFORM_ID, PLATFORM_STATS, Unlock};
+pub use replays::ReplayFile;
 
 /// Seconds since the Unix epoch.
 pub type Timestamp = i64;

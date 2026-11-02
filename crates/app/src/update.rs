@@ -301,6 +301,26 @@ mod tests {
     }
   }
 
+  /// Downloads and verifies the latest release's MSI as an older copy would:
+  /// `cargo test -p archi-games -- --ignored`.
+  #[tokio::test]
+  #[ignore = "needs the network and downloads the installer"]
+  async fn downloads_and_verifies_the_latest_release() {
+    let updater = Updater::new().unwrap();
+    let response = updater
+      .http
+      .get(format!("https://api.github.com/repos/{REPO}/releases/latest"))
+      .header("Accept", "application/vnd.github+json")
+      .send()
+      .await
+      .unwrap();
+    let body = response.bytes().await.unwrap();
+    let update = pick(&body, Version(0, 0, 0), Install::Msi).unwrap().expect("a published release with an MSI and checksums");
+    let path = updater.download(&update, |_| {}).await.unwrap();
+    assert!(path.metadata().unwrap().len() > 1_000_000);
+    std::fs::remove_file(path).unwrap();
+  }
+
   #[test]
   fn hashes_as_lowercase_hex() {
     assert_eq!(hex(&Sha256::digest(b"abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
