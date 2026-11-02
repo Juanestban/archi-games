@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/app", "crates/core", "crates/storage", "crates/trackers/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Juanestban/archi-games"
@@ -17,7 +17,9 @@ eframe = "0.37"
 fluent-bundle = "0.16"
 keyring = "4"
 rodio = { version = "0.23", default-features = false, features = ["playback"] }
-reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "native-tls",
+] }
 rusqlite = { version = "0.41", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -29,4 +31,10 @@ toml = "0.8"
 tray-icon = "0.26"
 winresource = "0.1"
 unic-langid = "0.9"
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Registry", "Win32_System_Threading", "Win32_Security"] }
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_Security",
+] }
