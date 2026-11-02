@@ -91,11 +91,32 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   consulta inmediata y luego cada 30 s durante 5 min; sin el juego, cada 12 min.
 - **TLS nativo** (schannel en Windows): sin OpenSSL ni compilar criptografía
   en C.
-- **La clave de API** se guarda en la tabla `settings` de SQLite, en claro.
-  Cifrarla con el almacén de credenciales del sistema queda para el paso 4.
-- **Consola de desarrollo** hasta que exista la interfaz: `archi-games key`,
-  `link`, `status`, `poll` y `run`. Su texto está en inglés y no usa Fluent
-  porque desaparece en el paso 4.
+- **La clave de API** se guarda en el Administrador de credenciales de Windows
+  (`keyring`), nunca en SQLite. Si una versión anterior la dejó en `settings`,
+  se mueve al arrancar.
+- **La consola de desarrollo** del paso 3 se eliminó en el paso 4: todo se hace
+  desde la interfaz.
+
+### Interfaz (decidido al implementar el paso 4)
+
+- **eframe 0.37** con su renderizador por defecto (wgpu). Las compilaciones de
+  release no abren consola (`windows_subsystem = "windows"`).
+- **Dos conexiones a SQLite:** la UI solo lee (y guarda el idioma); el hilo del
+  tracker escribe. WAL permite leer mientras se escribe. La UI abre (y migra)
+  la base antes de arrancar el hilo.
+- **El hilo del tracker** recibe `Command`s (guardar clave, vincular, consultar
+  ahora) y envía `Event`s (estado, progreso, desbloqueos, resultado de la
+  vinculación). Los errores llegan como `Problem`, que la UI traduce.
+- **Textos de la interfaz** en `crates/app/locales/{es,en}.ftl` con prefijo
+  `ui-`; los de cada juego siguen en `games/<id>/locales`. Todo va a un único
+  bundle Fluent por idioma.
+- **Fechas relativas** ("hace 5 min") hasta una semana; después, la fecha en
+  UTC (sin dependencias de zonas horarias).
+- **Progreso de los metalogros:** se calcula a partir del resumen de la cuenta
+  (`AccountSummary::platform_stats`), igual que al evaluarlos.
+- **Porcentaje completado** de un juego = logros desbloqueados / total, con el
+  platino incluido (sin ponderar por rango).
+- **Ajustes de volumen e inicio con Windows** se añadirán con los pasos 5 y 6.
 
 ## 3. Modelo de logros
 

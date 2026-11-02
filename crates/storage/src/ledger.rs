@@ -32,6 +32,17 @@ pub struct AccountSummary {
   pub game_unlocked: u32,
 }
 
+impl AccountSummary {
+  /// What the platform definition's conditions read ([`PLATFORM_STATS`]).
+  pub fn platform_stats(&self) -> StatSnapshot {
+    StatSnapshot::new().with(MODE_ALL, "platinums", self.platinums.into()).with(MODE_ALL, "level", self.level.level.into()).with(
+      MODE_ALL,
+      "unlocked",
+      self.game_unlocked.into(),
+    )
+  }
+}
+
 fn unlock(definition: &GameDefinition, id: &str, tier: Tier, at: Timestamp) -> Unlock {
   Unlock { game_id: definition.game.id.clone(), achievement_id: id.to_owned(), tier, unlocked_at: at }
 }
@@ -122,13 +133,7 @@ impl Storage {
     let mut unlocked = Vec::new();
 
     loop {
-      let summary = self.account_summary(&definitions, rules)?;
-      let stats = StatSnapshot::new().with(MODE_ALL, "platinums", summary.platinums.into()).with(MODE_ALL, "level", summary.level.level.into()).with(
-        MODE_ALL,
-        "unlocked",
-        summary.game_unlocked.into(),
-      );
-
+      let stats = self.account_summary(&definitions, rules)?.platform_stats();
       let mut progress = GameProgress::with_baseline(StatSnapshot::new());
       progress.unlocked = self.unlocked_ids(&platform.game.id)?;
       let new = progress.apply(platform, stats);

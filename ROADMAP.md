@@ -5,9 +5,11 @@ terminarla y actualiza **Estado actual**.
 
 ## Estado actual
 
-- **Hecho:** pasos 1 (`core`) y 2 (`storage`); paso 3 (tracker de Fortnite) salvo el hito.
-- **Siguiente:** hito del paso 3 (el usuario lo prueba con su clave y una partida real
-  usando la consola de desarrollo); después, paso 4 (interfaz).
+- **Hecho:** pasos 1 (`core`), 2 (`storage`), 3 (tracker de Fortnite) y 4 (interfaz).
+  La cuenta del usuario ya está vinculada y tiene su lectura base.
+- **Pendiente del paso 3:** el hito. Tras la próxima partida real del usuario, el
+  desbloqueo debe verse en Perfil e Historial.
+- **Siguiente:** paso 5 (ventana de notificación y sonidos).
 - **Última actualización:** 2026-11-02.
 
 ## Fase 1: versión inicial con Fortnite
@@ -40,15 +42,17 @@ terminarla y actualiza **Estado actual**.
 - [x] Detectar el proceso solo por nombre (ToolHelp de Windows, sin abrir ningún proceso)
 - [x] Consultas periódicas (`Poller`): 60 s con el juego abierto, cada 30 s durante 5 min al cerrar, 12 min sin el juego
 - [x] Cliente simulado (`ReplayTracker`) y tests con lecturas grabadas y una respuesta real de ejemplo
-- [x] Consola de desarrollo: `key`, `link`, `status`, `poll`, `run`
-- [ ] **Hito:** un logro se desbloquea de verdad, comprobado en consola
+- [x] Consola de desarrollo: `key`, `link`, `status`, `poll`, `run` (sustituida por la interfaz en el paso 4)
+- [ ] **Hito:** un logro se desbloquea de verdad tras una partida real
 
-### Paso 4: interfaz (egui) e i18n
-- [ ] Hilo tokio + canales hacia egui
-- [ ] Pantallas: Perfil, Juegos, Logros, Historial, Ajustes
-- [ ] Fluent (`fluent-bundle`) para la UI y los logros; idioma del sistema, con el inglés si falta un texto
-- [ ] Logros secretos y barras de progreso
-- [ ] Estilo visual "de videojuego"
+### Paso 4: interfaz (egui) e i18n ✅
+- [x] Hilo tokio + canales hacia egui (`worker`: comandos de la UI, eventos con `request_repaint`)
+- [x] Pantallas: Perfil, Juegos, Logros, Historial, Ajustes
+- [x] Fluent (`fluent-bundle`) para la UI y los logros; idioma del sistema, con el inglés si falta un texto
+- [x] Logros secretos y barras de progreso
+- [x] Estilo visual "de videojuego" (tema oscuro, acento violeta, insignias por rango)
+- [x] Clave de API en el Administrador de credenciales de Windows (`keyring`), migrada desde SQLite
+- [x] Test: todo token `ui-…` usado en el código existe en `es` y `en`
 
 ### Paso 5: notificación y sonidos
 - [ ] Viewport egui transparente, sin bordes, siempre encima, que deja pasar los clics

@@ -11,11 +11,16 @@ archi-core = { path = "crates/core" }
 archi-fortnite = { path = "crates/trackers/fortnite" }
 archi-storage = { path = "crates/storage" }
 directories = "6"
+eframe = "0.37"
+fluent-bundle = "0.16"
+keyring = "4"
 reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
 rusqlite = { version = "0.41", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sys-locale = "0.3"
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt", "time"] }
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 toml = "0.8"
+unic-langid = "0.9"
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp"] }

@@ -7,8 +7,13 @@ edition.workspace = true
 archi-core.workspace = true
 archi-fortnite.workspace = true
 archi-storage.workspace = true
+eframe.workspace = true
+fluent-bundle.workspace = true
+keyring.workspace = true
+sys-locale.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+unic-langid.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys.workspace = true

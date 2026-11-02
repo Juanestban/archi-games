@@ -17,7 +17,7 @@ crates/core               motor de logros: definiciones, evaluación, XP, nivele
                           trait GameTracker y cuándo consultar (Poller)
 crates/storage            SQLite: lecturas, desbloqueos, cuentas y ajustes
 crates/trackers/fortnite  cliente de fortnite-api.com
-crates/app                binario: consola de desarrollo hasta tener interfaz
+crates/app                la app: interfaz egui, textos (locales/) e hilo del tracker
 games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
 ```
@@ -54,12 +54,13 @@ Necesitas una clave gratuita de [fortnite-api.com](https://dash.fortnite-api.com
 y tener activado en Fortnite *Mostrar en la clasificación de carrera*.
 
 ```
-cargo run -- key <tu-clave>
-cargo run -- link <tu-nombre-de-Epic>
-cargo run -- poll      # la primera consulta es la base: el progreso cuenta desde aquí
-cargo run              # se queda vigilando; juega una partida y espera al final
-cargo run -- status
+cargo run
 ```
+
+En **Ajustes**, guarda la clave (va al Administrador de credenciales de
+Windows) y vincula tu nombre de Epic. La primera consulta es la base: el
+progreso cuenta desde ahí. Juega una partida y, al terminarla, el logro aparece
+en **Perfil** e **Historial**.
 
 En Windows, `.cargo/config.toml` obliga a compilar las dependencias en C
 (SQLite) con MSVC aunque el entorno tenga `CC=gcc`.

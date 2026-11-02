@@ -184,4 +184,9 @@ impl Storage {
     )?;
     Ok(())
   }
+
+  pub fn delete_setting(&self, key: &str) -> Result<()> {
+    self.conn.execute("DELETE FROM settings WHERE key = ?1", [key])?;
+    Ok(())
+  }
 }
