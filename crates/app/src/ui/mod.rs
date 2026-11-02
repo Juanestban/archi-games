@@ -1,14 +1,17 @@
-//! The main window: navigation plus the Profile, Games, Achievements,
-//! History and Settings screens. Reads go through the UI's own database
-//! connection; anything that tracks or writes stats goes to the worker.
+//! The main window, laid out like ArtCraft's shell: a custom title bar, a sidebar flush with
+//! the window's edge and a content panel with a breadcrumb header. Reads go through the UI's
+//! own database connection; anything that tracks or writes stats goes to the worker.
 
 mod achievements;
+mod chrome;
 mod games;
 mod history;
+mod icons;
 mod notify;
 mod profile;
 mod settings;
 mod theme;
+mod widgets;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -16,13 +19,22 @@ use std::time::Duration;
 use archi_core::{AchievementDef, GameDefinition, GameProgress, StatSnapshot, Tier};
 use archi_fortnite::GAME_ID;
 use archi_storage::{AccountSummary, LinkedAccount, PLATFORM_ID, Storage, Timestamp, UnlockRecord};
-use eframe::egui::{self, FontFamily, FontId, RichText, ScrollArea, Ui};
+use eframe::egui::{self, Align2, Color32, Frame, Id, Margin, Rect, RichText, ScrollArea, Sense, Ui, pos2, vec2};
 use fluent_bundle::FluentValue;
+use icons::Icon;
 
 use crate::catalog::Catalog;
 use crate::i18n::{I18n, LanguageChoice};
 use crate::sound::{self, Sounds};
 use crate::worker::{self, Event, Problem, Status};
+
+const SIDEBAR_WIDTH: f32 = 236.0;
+const HEADER_HEIGHT: f32 = 52.0;
+const ROW_HEIGHT: f32 = 34.0;
+/// Page transition: fade and rise.
+const PAGE_IN: f64 = 0.28;
+/// Bars and rings fill up after a page appears.
+const FILL_IN: f64 = 0.8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Screen {
@@ -34,8 +46,6 @@ enum Screen {
 }
 
 impl Screen {
-  const ALL: [Self; 5] = [Self::Profile, Self::Games, Self::Achievements, Self::History, Self::Settings];
-
   fn token(self) -> &'static str {
     match self {
       Self::Profile => "ui-nav-profile",
@@ -43,6 +53,16 @@ impl Screen {
       Self::Achievements => "ui-nav-achievements",
       Self::History => "ui-nav-history",
       Self::Settings => "ui-nav-settings",
+    }
+  }
+
+  fn icon(self) -> Icon {
+    match self {
+      Self::Profile => Icon::User,
+      Self::Games => Icon::Gamepad,
+      Self::Achievements => Icon::Trophy,
+      Self::History => Icon::Clock,
+      Self::Settings => Icon::Gear,
     }
   }
 }
@@ -61,6 +81,8 @@ pub struct ArchiApp {
   i18n: I18n,
   language: LanguageChoice,
   screen: Screen,
+  /// egui time when `screen` was shown, for the page transition.
+  shown_at: f64,
 
   status: Status,
   progress: GameProgress,
@@ -96,6 +118,7 @@ impl ArchiApp {
       i18n: I18n::new(language.resolve()),
       language,
       screen: Screen::Profile,
+      shown_at: 0.0,
       status: Status::default(),
       progress: GameProgress::default(),
       platform_progress: GameProgress::default(),
@@ -158,6 +181,22 @@ impl ArchiApp {
     }
   }
 
+  fn go(&mut self, ui: &Ui, screen: Screen) {
+    if screen != self.screen {
+      self.screen = screen;
+      self.shown_at = ui.input(|i| i.time);
+    }
+  }
+
+  /// 0→1 over `duration` seconds since the page appeared.
+  fn page_t(&self, ui: &Ui, duration: f64) -> f32 {
+    let t = ((ui.input(|i| i.time) - self.shown_at) / duration) as f32;
+    if t < 1.0 {
+      ui.ctx().request_repaint();
+    }
+    widgets::ease_out(t)
+  }
+
   fn tr(&self, id: &str) -> String {
     self.i18n.tr(id)
   }
@@ -184,89 +223,239 @@ impl ArchiApp {
     (unlocked, definition.achievements.len())
   }
 
-  fn nav(&mut self, ui: &mut Ui) {
-    ui.label(RichText::new("ARCHI GAMES").font(FontId::new(20.0, FontFamily::Proportional)).strong().color(theme::ACCENT));
+  fn title_bar(&mut self, ui: &mut Ui) {
+    chrome::title_bar_drag(ui);
+    let rect = ui.max_rect();
+    let mut bar = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(egui::Layout::left_to_right(egui::Align::Center)));
+    let ui = &mut bar;
+    ui.add_space(14.0);
+    let (mark, _) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::hover());
+    ui.painter().rect_filled(mark, theme::RADIUS, theme::ACCENT);
+    icons::trophy(ui.painter(), mark.shrink(4.0), Color32::WHITE, true);
     ui.add_space(4.0);
-    let level = self.tr_args("ui-level", &[("level", self.summary.level.level.into())]);
-    ui.label(theme::muted(level));
-    ui.add_space(20.0);
+    widgets::hud(ui, "Archi Games", theme::INK);
 
-    for screen in Screen::ALL {
-      let label = RichText::new(self.tr(screen.token())).size(16.0);
-      let button = egui::Button::selectable(self.screen == screen, label).min_size(egui::vec2(ui.available_width(), 36.0));
-      if ui.add(button).clicked() {
-        self.screen = screen;
-      }
-      ui.add_space(4.0);
-    }
-
-    ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-      if let Some(problem) = self.status.problem.or(self.load_failed.then_some(Problem::Storage)) {
-        ui.label(RichText::new(self.tr(problem.token())).small().color(theme::DANGER));
-      } else if self.status.busy {
-        ui.label(theme::muted(self.tr("ui-busy")).small());
-      }
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+      ui.spacing_mut().item_spacing.x = 0.0;
+      chrome::caption_buttons(ui);
+      ui.add_space(12.0);
+      self.status_pill(ui);
     });
   }
 
-  /// One achievement as a card: badge, name, description, then either its
-  /// unlock date or its progress bar.
-  fn achievement_card(&self, ui: &mut Ui, game_id: &str, achievement: &AchievementDef) {
+  /// Tracking at a glance: a dot and a mono label.
+  fn status_pill(&self, ui: &mut Ui) {
+    let problem = self.status.problem.or(self.load_failed.then_some(Problem::Storage));
+    let ready = self.status.has_api_key && self.account.is_some();
+    let (color, token) = match problem {
+      Some(_) => (theme::BAD, "ui-status-problem"),
+      None if self.status.busy => (theme::ACCENT_400, "ui-busy"),
+      None if !ready => (theme::FAINT, "ui-status-setup"),
+      None if self.status.game_running => (theme::GOOD, "ui-status-in-game"),
+      None => (theme::GOOD, "ui-status-tracking"),
+    };
+    let label = widgets::caps(ui, &self.tr(token), theme::HUD_SIZE, theme::MUTED);
+    let (rect, response) = ui.allocate_exact_size(vec2(label.size().x + 34.0, 24.0), Sense::hover());
+    ui.painter().rect(rect, theme::RADIUS, theme::WASH, theme::hairline(), egui::StrokeKind::Inside);
+    let dot = pos2(rect.left() + 12.0, rect.center().y);
+    if self.status.busy {
+      // Pulses while a check runs.
+      let pulse = ((ui.input(|i| i.time) * 4.0).sin() * 0.5 + 0.5) as f32;
+      ui.painter().circle_filled(dot, 3.0 + 3.0 * pulse, theme::fade(color, 0.35 * (1.0 - pulse)));
+      ui.ctx().request_repaint();
+    }
+    ui.painter().circle_filled(dot, 3.0, color);
+    ui.painter().galley(pos2(rect.left() + 22.0, rect.center().y - label.size().y / 2.0), label, theme::MUTED);
+    if let Some(problem) = problem {
+      response.on_hover_text(self.tr(problem.token()));
+    }
+  }
+
+  fn sidebar(&mut self, ui: &mut Ui) {
+    let rect = ui.max_rect();
+    let mut inner = ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(12.0, 8.0))));
+    let ui = &mut inner;
+    ui.spacing_mut().item_spacing.y = 2.0;
+
+    let mut selected_rect = None;
+    widgets::section(ui, &self.tr("ui-sidebar-library"));
+    for screen in [Screen::Profile, Screen::Games, Screen::Achievements, Screen::History] {
+      let (row, clicked) = self.nav_row(ui, screen);
+      if screen == self.screen {
+        selected_rect = Some(row);
+      }
+      if clicked {
+        self.go(ui, screen);
+      }
+    }
+
+    // Settings and the account sit at the bottom.
+    let bottom = Rect::from_min_max(pos2(rect.left() + 12.0, rect.bottom() - 110.0), pos2(rect.right() - 12.0, rect.bottom() - 12.0));
+    let mut foot = ui.new_child(egui::UiBuilder::new().max_rect(bottom));
+    let (row, clicked) = self.nav_row(&mut foot, Screen::Settings);
+    if self.screen == Screen::Settings {
+      selected_rect = Some(row);
+    }
+    if clicked {
+      self.go(&foot, Screen::Settings);
+    }
+    foot.add_space(8.0);
+    self.account_card(&mut foot);
+
+    // The selection marker slides between rows.
+    if let Some(row) = selected_rect {
+      let y = ui.ctx().animate_value_with_time(Id::unique("nav-marker"), row.center().y, 0.18);
+      ui.painter().rect_filled(Rect::from_center_size(pos2(rect.left() + 3.0, y), vec2(2.0, 18.0)), 0.0, Color32::WHITE);
+    }
+  }
+
+  fn nav_row(&self, ui: &mut Ui, screen: Screen) -> (Rect, bool) {
+    let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
+    let selected = self.screen == screen;
+    let hover = ui.ctx().animate_bool_with_time(response.id, response.hovered() || selected, 0.12);
+    let p = ui.painter();
+    p.rect_filled(
+      rect,
+      theme::RADIUS,
+      theme::fade(if selected { theme::WASH_SELECTED } else { theme::WASH }, hover.max(if selected { 1.0 } else { 0.0 })),
+    );
+    let ink = widgets::lerp(theme::SIDEBAR_INK, Color32::WHITE, hover);
+    icons::paint(p, icons::square(pos2(rect.left() + 18.0, rect.center().y), 16.0), screen.icon(), ink);
+    let weight = if selected { 600.0 } else { 450.0 };
+    let galley = ui.painter().layout_job(egui::text::LayoutJob::single_section(
+      self.tr(screen.token()),
+      egui::TextFormat {
+        font_id: egui::FontId::proportional(14.0),
+        color: ink,
+        coords: egui::epaint::text::VariationCoords::new([("wght", weight)]),
+        ..Default::default()
+      },
+    ));
+    ui.painter().galley(pos2(rect.left() + 36.0, rect.center().y - galley.size().y / 2.0), galley, ink);
+    (rect, response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked())
+  }
+
+  /// Avatar, Epic name, level and a thin XP bar.
+  fn account_card(&self, ui: &mut Ui) {
+    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::hover());
+    let p = ui.painter();
+    p.rect(rect, theme::RADIUS, theme::WASH, theme::hairline(), egui::StrokeKind::Inside);
+    let name = self.account.as_ref().map_or_else(|| self.tr("ui-account-none-short"), |a| a.display_name.clone());
+    let avatar = pos2(rect.left() + 26.0, rect.center().y);
+    p.circle_filled(avatar, 15.0, theme::ACCENT);
+    let initial = name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default();
+    p.text(avatar, Align2::CENTER_CENTER, initial, theme::display(14.0), Color32::WHITE);
+    p.text(pos2(avatar.x + 24.0, rect.top() + 17.0), Align2::LEFT_CENTER, name, egui::FontId::proportional(13.5), theme::INK);
+    let level = self.summary.level;
+    let label = self.tr_args("ui-level", &[("level", level.level.into())]);
+    let galley = widgets::caps(ui, &label, 10.0, theme::MUTED);
+    ui.painter().galley(pos2(avatar.x + 24.0, rect.top() + 28.0), galley, theme::MUTED);
+    let bar = Rect::from_min_size(pos2(avatar.x + 24.0, rect.bottom() - 12.0), vec2(rect.right() - avatar.x - 36.0, 3.0));
+    let fraction = level.xp_into_level as f32 / level.xp_for_next.max(1) as f32;
+    let fraction = ui.ctx().animate_value_with_time(Id::unique("sidebar-xp"), fraction, 0.6);
+    ui.painter().rect_filled(bar, 0.0, theme::SUNKEN);
+    ui.painter().rect_filled(Rect::from_min_size(bar.min, vec2(bar.width() * fraction, bar.height())), 0.0, theme::ACCENT);
+  }
+
+  /// Breadcrumbs: "ARCHI GAMES › [SCREEN]", the leaf inverted like ArtCraft's.
+  fn page_header(&self, ui: &mut Ui) {
+    let rect = ui.max_rect();
+    ui.painter().hline(rect.x_range(), rect.bottom() - 0.5, theme::hairline());
+    let mut bar =
+      ui.new_child(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(28.0, 0.0))).layout(egui::Layout::left_to_right(egui::Align::Center)));
+    let ui = &mut bar;
+    widgets::hud(ui, "Archi Games", theme::MUTED);
+    let (chevron, _) = ui.allocate_exact_size(vec2(12.0, 12.0), Sense::hover());
+    icons::paint(ui.painter(), chevron, Icon::ChevronRight, theme::FAINT);
+    let galley = widgets::caps(ui, &self.tr(self.screen.token()), theme::HUD_SIZE, theme::BG);
+    let (crumb, _) = ui.allocate_exact_size(galley.size() + vec2(14.0, 10.0), Sense::hover());
+    ui.painter().rect_filled(crumb, 0.0, theme::INK);
+    ui.painter().galley(crumb.center() - galley.size() / 2.0, galley, theme::BG);
+  }
+
+  fn content(&mut self, ui: &mut Ui) {
+    let t = self.page_t(ui, PAGE_IN);
+    ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+      Frame::NONE.inner_margin(Margin { left: 28, right: 28, top: 24, bottom: 28 }).show(ui, |ui| {
+        ui.set_opacity(t);
+        ui.add_space((1.0 - t) * 16.0);
+        match self.screen {
+          Screen::Profile => self.profile_screen(ui),
+          Screen::Games => self.games_screen(ui),
+          Screen::Achievements => self.achievements_screen(ui),
+          Screen::History => self.history_screen(ui),
+          Screen::Settings => self.settings_screen(ui),
+        }
+      });
+    });
+  }
+
+  /// An achievement as a list row: badge, name, description, then its unlock date or
+  /// progress; reward on the right.
+  fn achievement_row(&self, ui: &mut Ui, game_id: &str, achievement: &AchievementDef) {
     let unlocked_at = self.unlocked_at(game_id, &achievement.id);
     let secret = achievement.hidden && unlocked_at.is_none();
-    theme::card().show(ui, |ui| {
-      ui.set_width(ui.available_width());
+    let fill = self.page_t(ui, FILL_IN);
+    widgets::hover_row(ui, Id::unique(("achievement", game_id, &achievement.id)), |ui| {
       ui.horizontal(|ui| {
-        theme::tier_badge(ui, achievement.tier, unlocked_at.is_some(), 40.0);
-        ui.add_space(8.0);
+        widgets::tier_badge(ui, achievement.tier, unlocked_at.is_some(), 46.0);
+        ui.add_space(10.0);
         ui.vertical(|ui| {
+          ui.spacing_mut().item_spacing.y = 3.0;
           let (name, description) = if secret {
             (self.tr("ui-hidden-name"), self.tr("ui-hidden-desc"))
           } else {
             (self.tr(&achievement.name), self.tr(&achievement.description))
           };
-          ui.label(RichText::new(name).size(16.0).strong());
+          ui.label(theme::body(name, 15.0, 600.0));
           ui.label(theme::muted(description));
           if let Some(at) = unlocked_at {
-            ui.label(RichText::new(self.tr_args("ui-unlocked-when", &[("when", self.when(at).into())])).small().color(theme::SUCCESS));
+            widgets::hud(ui, &self.tr_args("ui-unlocked-when", &[("when", self.when(at).into())]), theme::GOOD);
           } else if !secret && let Some(progress) = self.progress_of(game_id).progress(achievement) {
             let current = progress.current.min(progress.target);
-            let fraction = current as f32 / progress.target.max(1) as f32;
-            ui.add(egui::ProgressBar::new(fraction).text(format!("{current} / {}", progress.target)).desired_width(320.0).fill(theme::ACCENT));
+            ui.horizontal(|ui| {
+              let fraction = current as f32 / progress.target.max(1) as f32;
+              widgets::progress(ui, 220.0, 4.0, fraction * fill, theme::ACCENT);
+              ui.label(RichText::new(format!("{current} / {}", progress.target)).font(theme::mono(11.0)).color(theme::MUTED));
+            });
           }
         });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-          let xp = self.catalog.rules.xp_for(achievement.tier);
-          ui.label(RichText::new(self.tr_args("ui-xp-reward", &[("xp", xp.into())])).strong().color(theme::tier_color(achievement.tier)));
-          if achievement.pack.is_some() {
-            ui.label(theme::muted(self.tr("ui-pack")).small());
-          }
+          ui.with_layout(egui::Layout::top_down(egui::Align::Max), |ui| {
+            let xp = self.catalog.rules.xp_for(achievement.tier);
+            let color = theme::tier_color(achievement.tier);
+            ui.label(RichText::new(self.tr_args("ui-xp-reward", &[("xp", xp.into())])).font(theme::mono(13.0)).color(color));
+            widgets::hud(ui, &self.tr(theme::tier_token(achievement.tier)), theme::fade(color, 0.75));
+            if achievement.pack.is_some() {
+              widgets::hud(ui, &self.tr("ui-pack"), theme::FAINT);
+            }
+          });
         });
       });
     });
-    ui.add_space(8.0);
   }
 
   /// A row of the unlock history.
-  fn unlock_card(&self, ui: &mut Ui, record: &UnlockRecord) {
+  fn unlock_row(&self, ui: &mut Ui, record: &UnlockRecord) {
     let Some(definition) = self.catalog.get(&record.game_id) else { return };
     let Some(achievement) = definition.get(&record.achievement_id) else { return };
-    theme::card().show(ui, |ui| {
-      ui.set_width(ui.available_width());
+    widgets::hover_row(ui, Id::unique(("unlock", &record.game_id, &record.achievement_id)), |ui| {
       ui.horizontal(|ui| {
-        theme::tier_badge(ui, achievement.tier, true, 32.0);
-        ui.add_space(8.0);
+        widgets::tier_badge(ui, achievement.tier, true, 38.0);
+        ui.add_space(10.0);
         ui.vertical(|ui| {
-          ui.label(RichText::new(self.tr(&achievement.name)).strong());
-          ui.label(theme::muted(format!("{} · {}", self.tr(&definition.game.name), self.when(record.unlocked_at))).small());
+          ui.spacing_mut().item_spacing.y = 3.0;
+          ui.label(theme::body(self.tr(&achievement.name), 14.5, 600.0));
+          widgets::hud(ui, &format!("{} · {}", self.tr(&definition.game.name), self.when(record.unlocked_at)), theme::MUTED);
         });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
           let xp = self.catalog.rules.xp_for(achievement.tier);
-          ui.label(RichText::new(self.tr_args("ui-xp-reward", &[("xp", xp.into())])).color(theme::tier_color(achievement.tier)));
+          ui.label(
+            RichText::new(self.tr_args("ui-xp-reward", &[("xp", xp.into())])).font(theme::mono(13.0)).color(theme::tier_color(achievement.tier)),
+          );
         });
       });
     });
-    ui.add_space(6.0);
   }
 }
 
@@ -296,15 +485,15 @@ impl eframe::App for ArchiApp {
     ui.ctx().request_repaint_after(Duration::from_secs(30));
     self.notifications(ui.ctx());
 
-    egui::Panel::left("nav").exact_size(210.0).resizable(false).frame(theme::nav_frame()).show(ui, |ui| self.nav(ui));
-    egui::CentralPanel::default_margins().frame(theme::content_frame()).show(ui, |ui| {
-      ScrollArea::vertical().auto_shrink(false).show(ui, |ui| match self.screen {
-        Screen::Profile => self.profile_screen(ui),
-        Screen::Games => self.games_screen(ui),
-        Screen::Achievements => self.achievements_screen(ui),
-        Screen::History => self.history_screen(ui),
-        Screen::Settings => self.settings_screen(ui),
-      });
+    egui::Panel::top("title-bar").exact_size(chrome::TITLE_BAR_HEIGHT).frame(Frame::NONE.fill(theme::CHROME)).show(ui, |ui| self.title_bar(ui));
+    egui::Panel::left("sidebar").exact_size(SIDEBAR_WIDTH).resizable(false).frame(Frame::NONE.fill(theme::CHROME)).show(ui, |ui| self.sidebar(ui));
+    egui::CentralPanel::no_frame().frame(Frame::NONE.fill(theme::BG)).show(ui, |ui| {
+      let rect = ui.max_rect();
+      ui.painter().vline(rect.left() + 0.5, rect.y_range(), theme::hairline());
+      ui.painter().hline(rect.x_range(), rect.top() + 0.5, theme::hairline());
+      egui::Panel::top("page-header").exact_size(HEADER_HEIGHT).frame(Frame::NONE).show(ui, |ui| self.page_header(ui));
+      egui::CentralPanel::no_frame().show(ui, |ui| self.content(ui));
     });
+    chrome::window_edges(ui.ctx());
   }
 }

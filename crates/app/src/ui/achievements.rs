@@ -3,42 +3,43 @@
 use std::sync::Arc;
 
 use archi_core::Tier;
-use eframe::egui::{self, Ui};
+use eframe::egui::Ui;
 
-use super::{ArchiApp, StateFilter, theme};
+use super::{ArchiApp, StateFilter, theme, widgets};
+
+const TIERS: [Option<Tier>; 5] = [None, Some(Tier::Bronze), Some(Tier::Silver), Some(Tier::Gold), Some(Tier::Platinum)];
+const STATES: [StateFilter; 3] = [StateFilter::All, StateFilter::Unlocked, StateFilter::Locked];
 
 impl ArchiApp {
   pub(super) fn achievements_screen(&mut self, ui: &mut Ui) {
-    theme::heading(ui, self.tr("ui-nav-achievements"));
+    ui.label(theme::heading(self.tr("ui-nav-achievements"), 30.0));
+    ui.add_space(16.0);
     let catalog = Arc::clone(&self.catalog);
     let Some(definition) = catalog.get(&self.shown_game) else { return };
 
-    ui.horizontal(|ui| {
-      egui::ComboBox::from_id_salt("game").selected_text(self.tr(&definition.game.name)).show_ui(ui, |ui| {
-        for game in catalog.all() {
-          let name = self.tr(&game.game.name);
-          ui.selectable_value(&mut self.shown_game, game.game.id.clone(), name);
-        }
-      });
-      ui.add_space(12.0);
-      for (filter, token) in
-        [(StateFilter::All, "ui-filter-all"), (StateFilter::Unlocked, "ui-filter-unlocked"), (StateFilter::Locked, "ui-filter-locked")]
-      {
-        let label = self.tr(token);
-        ui.selectable_value(&mut self.state_filter, filter, label);
+    ui.horizontal_wrapped(|ui| {
+      ui.spacing_mut().item_spacing = eframe::egui::vec2(12.0, 10.0);
+      let games = catalog.all();
+      let names: Vec<String> = games.iter().map(|g| self.tr(&g.game.name)).collect();
+      let current = games.iter().position(|g| g.game.id == self.shown_game).unwrap_or(0);
+      if let Some(i) = widgets::segmented(ui, &names, current) {
+        self.shown_game = games[i].game.id.clone();
       }
-      ui.add_space(12.0);
-      let tier_label = self.tier_filter.map_or_else(|| self.tr("ui-filter-any-tier"), |tier| self.tr(theme::tier_token(tier)));
-      egui::ComboBox::from_id_salt("tier").selected_text(tier_label).show_ui(ui, |ui| {
-        let any = self.tr("ui-filter-any-tier");
-        ui.selectable_value(&mut self.tier_filter, None, any);
-        for tier in [Tier::Bronze, Tier::Silver, Tier::Gold, Tier::Platinum] {
-          let name = self.tr(theme::tier_token(tier));
-          ui.selectable_value(&mut self.tier_filter, Some(tier), name);
-        }
-      });
+
+      let states: Vec<String> = ["ui-filter-all", "ui-filter-unlocked", "ui-filter-locked"].iter().map(|t| self.tr(t)).collect();
+      let current = STATES.iter().position(|s| *s == self.state_filter).unwrap_or(0);
+      if let Some(i) = widgets::segmented(ui, &states, current) {
+        self.state_filter = STATES[i];
+      }
+
+      let tiers: Vec<String> =
+        TIERS.iter().map(|t| t.map_or_else(|| self.tr("ui-filter-any-tier"), |tier| self.tr(theme::tier_token(tier)))).collect();
+      let current = TIERS.iter().position(|t| *t == self.tier_filter).unwrap_or(0);
+      if let Some(i) = widgets::segmented(ui, &tiers, current) {
+        self.tier_filter = TIERS[i];
+      }
     });
-    ui.add_space(12.0);
+    ui.add_space(14.0);
 
     let game_id = &definition.game.id;
     let shown: Vec<_> = definition
@@ -56,9 +57,17 @@ impl ArchiApp {
       .collect();
     if shown.is_empty() {
       ui.label(theme::muted(self.tr("ui-no-matches")));
+      return;
     }
-    for achievement in shown {
-      self.achievement_card(ui, game_id, achievement);
-    }
+    // A hairline on top closes the list like a table.
+    let top = ui.cursor().top();
+    ui.painter().hline(ui.max_rect().x_range(), top, theme::hairline());
+    // Rows touch: their hairlines separate them.
+    ui.scope(|ui| {
+      ui.spacing_mut().item_spacing.y = 0.0;
+      for achievement in shown {
+        self.achievement_row(ui, game_id, achievement);
+      }
+    });
   }
 }

@@ -81,3 +81,12 @@ ui-settings-sound = Sonido y notificaciones
 ui-settings-sound-help = La notificación aparece sobre el juego en modo ventana o pantalla completa sin bordes, no en pantalla completa exclusiva.
 ui-volume = Volumen
 ui-notification-test = Probar notificación
+
+ui-sidebar-library = Biblioteca
+ui-status-tracking = Siguiendo
+ui-status-in-game = En partida
+ui-status-setup = Sin configurar
+ui-status-problem = Revisa Ajustes
+ui-level-label = Nivel
+ui-account-none-short = Sin cuenta
+ui-platinum-pending = Platino pendiente

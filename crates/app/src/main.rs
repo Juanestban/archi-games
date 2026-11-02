@@ -38,7 +38,12 @@ fn run() -> Result<(), Box<dyn Error>> {
   let storage = Storage::open(&db_path)?;
 
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default().with_title("Archi Games").with_inner_size([1040.0, 700.0]).with_min_inner_size([820.0, 560.0]),
+    viewport: egui::ViewportBuilder::default()
+      .with_title("Archi Games")
+      .with_inner_size([1120.0, 740.0])
+      .with_min_inner_size([880.0, 580.0])
+      // The title bar is drawn by the app (ui/chrome.rs).
+      .with_decorations(false),
     ..Default::default()
   };
   eframe::run_native(

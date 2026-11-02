@@ -139,6 +139,35 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
 - **Desbloqueos retroactivos** (logros nuevos que el historial ya cumplía)
   también se notifican, al arrancar.
 
+### Rediseño visual y sonoro (entre los pasos 5 y 6)
+
+- **Base: el sistema de ArtCraft** (`storytold/artcraft`, MIT/Apache-2.0; ver
+  `NOTICE.md`): superficies casi negras (`#121316`, cromo `#0a0a0c`), filos
+  blancos al 15 %, esquinas de 3 px solo en lo pulsable, tarjetas cuadradas,
+  azul `#2d81ff` para lo principal. Encima, los colores de los rangos.
+- **Tipografías** (OFL, incluidas en `crates/app/assets/fonts`): Archivo ancha
+  para títulos y números, Inter para el texto y Geist Mono en mayúsculas
+  espaciadas para etiquetas, botones y cifras.
+- **Ventana sin bordes:** barra de título propia (arrastrar, doble clic para
+  maximizar, botones de Windows) y redimensionado desde los bordes.
+- **Estructura:** barra lateral pegada al borde (Biblioteca arriba; Ajustes y la
+  tarjeta de cuenta abajo), cabecera con migas de pan y un indicador de estado
+  ("Siguiendo", "En partida", "Consultando…", "Revisa Ajustes").
+- **Animaciones:** la pantalla entra con un fundido y un leve ascenso (0,28 s);
+  barras y anillos se llenan al entrar (0,8 s); el indicador de la barra
+  lateral se desliza; las filas y los botones se iluminan al pasar el ratón.
+- **Iconos** dibujados con vectores (estilo Lucide), sin imágenes.
+- **Notificación:** tarjeta cuadrada con franja del color del rango, trofeo,
+  etiqueta mono, nombre en Archivo, una banda de luz que la cruza (en el
+  platino, una y otra vez) y una línea que marca el tiempo restante.
+- **Sonidos:** campanas de vidrio con parciales inarmónicos, un soplo de aire
+  previo, estéreo con ligera desafinación y una reverberación Schroeder.
+  Melodías originales (no se copia ningún sonido de consola): bronce, una nota;
+  plata, una quinta ascendente; oro, un arpegio; platino, un florecimiento
+  lento con cascada y acorde final de unos 4 s; subida de nivel, una escala
+  rápida. Se renderizan una vez en segundo plano y se mezclan sin bloquear la
+  UI.
+
 ## 3. Modelo de logros
 
 - **Rangos y XP** (puntos de trofeo de PlayStation): bronce 15, plata 30,

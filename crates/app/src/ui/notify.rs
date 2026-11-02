@@ -7,9 +7,9 @@ use std::collections::VecDeque;
 
 use archi_core::Tier;
 use archi_storage::Unlock;
-use eframe::egui::{self, Color32, CornerRadius, Frame, Margin, RichText, Stroke, Ui, UiBuilder, Vec2, ViewportBuilder, ViewportId, pos2, vec2};
+use eframe::egui::{self, Color32, Rect, Stroke, Ui, Vec2, ViewportBuilder, ViewportId, pos2, vec2};
 
-use super::{ArchiApp, theme};
+use super::{ArchiApp, theme, widgets};
 use crate::catalog::Catalog;
 use crate::sound::Cue;
 
@@ -112,44 +112,48 @@ impl ArchiApp {
   }
 
   fn draw_toast(&self, ui: &mut Ui, toast: &Toast, elapsed: f64) {
-    let slide = 1.0 - (1.0 - (elapsed / SLIDE_IN).min(1.0)).powi(3); // ease-out cubic
+    let t = elapsed as f32;
     ui.set_opacity(((SHOW_FOR - elapsed) / FADE_OUT).clamp(0.0, 1.0) as f32);
-    let rect = egui::Rect::from_min_size(pos2((1.0 - slide as f32) * SIZE.x, 0.0), SIZE);
+    let slide = widgets::ease_out(t / SLIDE_IN as f32);
+    let rect = Rect::from_min_size(pos2((1.0 - slide) * SIZE.x, 0.0), SIZE).shrink(1.0);
+    let p = ui.painter().with_clip_rect(rect.expand(1.0));
 
     let (accent, title, name, xp) = match toast {
       Toast::Unlock { name, tier, xp } => {
         let title = if *tier == Tier::Platinum { "ui-toast-platinum" } else { "ui-toast-unlocked" };
         (theme::tier_color(*tier), self.tr(title), self.tr(name), Some(*xp))
       }
-      Toast::LevelUp(level) => (theme::ACCENT, self.tr("ui-toast-level-up"), self.tr_args("ui-level", &[("level", (*level).into())]), None),
+      Toast::LevelUp(level) => (theme::ACCENT_400, self.tr("ui-toast-level-up"), self.tr_args("ui-level", &[("level", (*level).into())]), None),
     };
-    // Platinum gets a pulsing border.
-    let border = if matches!(toast, Toast::Unlock { tier: Tier::Platinum, .. }) { 2.0 + 1.5 * (elapsed as f32 * 6.0).sin().abs() } else { 2.0 };
+    let platinum = matches!(toast, Toast::Unlock { tier: Tier::Platinum, .. });
 
-    ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
-      Frame::NONE.fill(theme::PANEL).stroke(Stroke::new(border, accent)).corner_radius(CornerRadius::same(12)).inner_margin(Margin::same(14)).show(
-        ui,
-        |ui| {
-          ui.set_min_size(SIZE - vec2(28.0 + 2.0 * border, 28.0 + 2.0 * border));
-          ui.horizontal_centered(|ui| {
-            match toast {
-              Toast::Unlock { tier, .. } => theme::tier_badge(ui, *tier, true, 48.0),
-              Toast::LevelUp(_) => level_badge(ui),
-            }
-            ui.add_space(10.0);
-            ui.vertical(|ui| {
-              ui.label(RichText::new(title).small().color(accent));
-              ui.label(RichText::new(name).size(18.0).strong());
-            });
-            if let Some(xp) = xp {
-              ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(RichText::new(self.tr_args("ui-xp-reward", &[("xp", xp.into())])).size(16.0).strong().color(accent));
-              });
-            }
-          });
-        },
-      );
-    });
+    // Square card, hairline in the tier's color, a stripe on the left.
+    p.rect(rect, 0.0, theme::PANEL, Stroke::new(1.0, theme::fade(accent, 0.55)), egui::StrokeKind::Inside);
+    p.rect_filled(Rect::from_min_size(rect.min, vec2(3.0, rect.height())), 0.0, accent);
+    let badge = Rect::from_center_size(pos2(rect.left() + 46.0, rect.center().y), vec2(54.0, 54.0));
+    match toast {
+      Toast::Unlock { tier, .. } => widgets::paint_tier_badge(&p, badge, *tier, true),
+      Toast::LevelUp(_) => level_badge(&p, badge),
+    }
+    let text_x = badge.right() + 16.0;
+    p.galley(pos2(text_x, rect.top() + 22.0), widgets::caps(ui, &title, 10.5, accent), accent);
+    p.galley(pos2(text_x, rect.top() + 40.0), widgets::display_text(ui, &name, 19.0, theme::INK), theme::INK);
+    if let Some(xp) = xp {
+      let reward = self.tr_args("ui-xp-reward", &[("xp", xp.into())]);
+      p.text(pos2(rect.right() - 16.0, rect.center().y), egui::Align2::RIGHT_CENTER, reward, theme::mono(14.0), accent);
+    }
+
+    // A band of light sweeps across once; on a platinum it keeps sweeping.
+    let sweep = if platinum { (t - 0.25).rem_euclid(1.6) / 0.9 } else { (t - 0.25) / 0.75 };
+    if (0.0..1.0).contains(&sweep) {
+      let x = rect.left() - 90.0 + (rect.width() + 180.0) * widgets::ease_out(sweep);
+      let band = vec![pos2(x, rect.top()), pos2(x + 46.0, rect.top()), pos2(x - 4.0, rect.bottom()), pos2(x - 50.0, rect.bottom())];
+      let glow = if platinum { 0.16 } else { 0.08 };
+      p.add(egui::Shape::convex_polygon(band, theme::fade(Color32::WHITE, glow), Stroke::NONE));
+    }
+    // Time left, as a line along the bottom.
+    let left = (1.0 - elapsed / SHOW_FOR).clamp(0.0, 1.0) as f32;
+    p.hline(rect.left()..=rect.left() + rect.width() * left, rect.bottom() - 1.0, Stroke::new(2.0, theme::fade(accent, 0.7)));
   }
 
   /// Shows a sample of every kind of card (Settings > Sound).
@@ -161,12 +165,20 @@ impl ArchiApp {
   }
 }
 
-fn level_badge(ui: &mut Ui) {
-  let (rect, _) = ui.allocate_exact_size(Vec2::splat(48.0), egui::Sense::hover());
+fn level_badge(p: &egui::Painter, rect: Rect) {
+  p.rect(rect, theme::RADIUS, theme::SUNKEN, Stroke::new(1.0, theme::fade(theme::ACCENT_400, 0.6)), egui::StrokeKind::Inside);
+  p.circle_filled(rect.center(), rect.width() * 0.42, theme::fade(theme::ACCENT, 0.18));
   let c = rect.center();
-  ui.painter().circle_filled(c, 24.0, theme::ACCENT);
-  let arrow = vec![pos2(c.x, c.y - 11.0), pos2(c.x + 11.0, c.y + 7.0), pos2(c.x - 11.0, c.y + 7.0)];
-  ui.painter().add(egui::Shape::convex_polygon(arrow, Color32::WHITE, Stroke::NONE));
+  let arrow = vec![
+    pos2(c.x, c.y - 12.0),
+    pos2(c.x + 12.0, c.y + 4.0),
+    pos2(c.x + 5.0, c.y + 4.0),
+    pos2(c.x + 5.0, c.y + 12.0),
+    pos2(c.x - 5.0, c.y + 12.0),
+    pos2(c.x - 5.0, c.y + 4.0),
+    pos2(c.x - 12.0, c.y + 4.0),
+  ];
+  p.add(egui::Shape::closed_line(arrow, Stroke::new(1.5, theme::ACCENT_400)));
 }
 
 #[cfg(test)]

@@ -22,6 +22,12 @@ games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
 ```
 
+## Créditos
+
+La interfaz parte del diseño de [ArtCraft](https://github.com/storytold/artcraft)
+y usa las fuentes Inter, Archivo y Geist Mono (OFL). Detalles en
+[NOTICE.md](NOTICE.md).
+
 ## Definir logros
 
 Los textos son tokens [Fluent](https://projectfluent.org/) traducidos en

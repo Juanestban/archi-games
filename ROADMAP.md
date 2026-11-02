@@ -63,6 +63,15 @@ terminarla y actualiza **Estado actual**.
 - [x] Ajustes: volumen y botón "Probar notificación"
 - [x] Funciona con la ventana principal minimizada (`RequestPaintWhileHidden`)
 
+### Rediseño (entre los pasos 5 y 6) ✅
+- [x] Estilo de ArtCraft: superficies casi negras, filos finos, Archivo/Inter/Geist Mono, esquinas de 3 px
+- [x] Ventana sin bordes con barra de título propia, botones de ventana y redimensionado por los bordes
+- [x] Barra lateral con iconos vectoriales, indicador animado y tarjeta de cuenta con XP
+- [x] Cabecera con migas de pan e indicador de estado del seguimiento
+- [x] Animaciones: transición entre pantallas, barras y anillos que se llenan, brillos al pasar el ratón
+- [x] Notificación rediseñada: franja del rango, destello que la cruza y línea de tiempo restante
+- [x] Sonidos nuevos: campanas cristalinas en estéreo con reverberación, una variación por rango
+
 ### Paso 6: integración con el sistema
 - [ ] Icono en la bandeja (`tray-icon`); cerrar la ventana la oculta
 - [ ] Inicio con Windows vía `HKCU\...\Run`
