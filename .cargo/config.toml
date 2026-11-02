@@ -1,0 +1,7 @@
+# The global environment sets CC=gcc (msys64). Objects built by MinGW don't link
+# with the MSVC toolchain (missing ___chkstk_ms / __isnan), so C dependencies such
+# as bundled SQLite must use MSVC. An empty target-specific value makes the `cc`
+# crate ignore CC and auto-detect the MSVC compiler, which isn't on PATH.
+[env]
+CC_x86_64_pc_windows_msvc = ""
+CXX_x86_64_pc_windows_msvc = ""

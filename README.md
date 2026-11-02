@@ -13,8 +13,9 @@ código y no hookea nada. Los datos llegan de APIs públicas. Detalles en
 ## Estructura
 
 ```
-crates/core   motor de logros: definiciones, evaluación, XP y niveles
-crates/app    binario (de momento un esqueleto)
+crates/core     motor de logros: definiciones, evaluación, XP y niveles
+crates/storage  SQLite: lecturas, desbloqueos, cuentas y ajustes
+crates/app      binario (de momento un esqueleto)
 games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
 ```
@@ -44,3 +45,6 @@ completar el juego base.
 ```
 cargo test --workspace
 ```
+
+En Windows, `.cargo/config.toml` obliga a compilar las dependencias en C
+(SQLite) con MSVC aunque el entorno tenga `CC=gcc`.

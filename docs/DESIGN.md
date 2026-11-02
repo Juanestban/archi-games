@@ -47,6 +47,23 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
 - **Todas las lecturas se guardan.** Un logro nuevo se evalúa reprocesando el
   historial desde la instalación.
 
+### Persistencia (decidido al implementar el paso 2)
+
+- **Las lecturas se guardan por cuenta.** Si vinculas otra cuenta de Epic,
+  empieza desde su propia base y no se mezcla con la anterior. Los logros ya
+  desbloqueados se conservan.
+- **Lecturas idénticas no se guardan.** Una consulta sin cambios no altera el
+  motor, así que omitirla reduce el historial sin cambiar el resultado al
+  reprocesar.
+- **El progreso no se guarda: se reconstruye** reprocesando las lecturas al
+  arrancar. Los desbloqueos que el historial gana por un logro nuevo se fechan
+  con la lectura que los ganó.
+- **Un desbloqueo nunca se revoca**, aunque luego endurezcas su condición o lo
+  vuelvas a evaluar. Si borras un logro del TOML, deja de contar para la XP.
+- **Metalogros:** la estadística `unlocked` cuenta solo los logros de juegos,
+  no los de la plataforma, para que no se alimenten a sí mismos. `level` sí
+  incluye la XP de la plataforma, por eso se evalúan en cascada.
+
 ## 3. Modelo de logros
 
 - **Rangos y XP** (puntos de trofeo de PlayStation): bronce 15, plata 30,

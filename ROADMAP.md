@@ -5,8 +5,8 @@ terminarla y actualiza **Estado actual**.
 
 ## Estado actual
 
-- **Hecho:** paso 1 (`core`).
-- **Siguiente:** paso 2 (`storage`).
+- **Hecho:** paso 1 (`core`) y paso 2 (`storage`).
+- **Siguiente:** paso 3 (tracker de Fortnite).
 - **Última actualización:** 2026-11-02.
 
 ## Fase 1: versión inicial con Fortnite
@@ -22,13 +22,14 @@ terminarla y actualiza **Estado actual**.
 - [x] Tests de escenarios con secuencias de lecturas simuladas
 - [x] ADR 0001 (ciudadano limpio)
 
-### Paso 2: `storage` (SQLite)
-- [ ] Crate `crates/storage` con `rusqlite` (bundled) y migraciones
-- [ ] Tablas: lecturas (snapshots), progreso por juego, desbloqueos con fecha, ajustes, cuenta vinculada
-- [ ] Reprocesar el historial cuando se añaden logros nuevos
-- [ ] XP total y nivel de la cuenta calculados a partir de los desbloqueos
-- [ ] Estadísticas de los metalogros (platinums, level, unlocked)
-- [ ] Ruta de datos en `%APPDATA%\archi-games` (crate `directories`)
+### Paso 2: `storage` (SQLite) ✅
+- [x] Crate `crates/storage` con `rusqlite` (bundled) y migraciones (`PRAGMA user_version`)
+- [x] Tablas: lecturas por cuenta, desbloqueos con fecha, ajustes, cuenta vinculada (el progreso se reconstruye, no se guarda)
+- [x] Reprocesar el historial cuando se añaden logros nuevos (`rebuild_progress`)
+- [x] Registrar cada consulta y sus desbloqueos en una sola transacción (`ingest`)
+- [x] XP total y nivel de la cuenta calculados a partir de los desbloqueos (`account_summary`)
+- [x] Metalogros de la plataforma, en cascada hasta que no salga ninguno nuevo (`evaluate_platform`)
+- [x] Ruta de datos en `%APPDATA%\archi-games\archi-games.db` (crate `directories`)
 
 ### Paso 3: tracker de Fortnite
 - [ ] Trait `GameTracker` en `core`

@@ -1,0 +1,11 @@
+[package]
+name = "archi-storage"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+archi-core.workspace = true
+directories.workspace = true
+rusqlite.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

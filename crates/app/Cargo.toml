@@ -5,3 +5,4 @@ edition.workspace = true
 
 [dependencies]
 archi-core.workspace = true
+archi-storage.workspace = true
