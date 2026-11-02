@@ -107,6 +107,21 @@ pub fn segmented(ui: &mut Ui, options: &[String], selected: usize) -> Option<usi
   clicked
 }
 
+/// An on/off switch whose knob slides.
+pub fn toggle(ui: &mut Ui, on: &mut bool) -> Response {
+  let (rect, mut response) = ui.allocate_exact_size(vec2(38.0, 20.0), Sense::click());
+  if response.clicked() {
+    *on = !*on;
+    response.mark_changed();
+  }
+  let t = ui.ctx().animate_bool_with_time(response.id, *on, 0.15);
+  let track = lerp(theme::SUNKEN, theme::ACCENT, t);
+  ui.painter().rect(rect, CornerRadius::same(10), track, Stroke::new(1.0, lerp(theme::LINE, theme::ACCENT, t)), egui::StrokeKind::Inside);
+  let x = rect.left() + 10.0 + t * (rect.width() - 20.0);
+  ui.painter().circle_filled(pos2(x, rect.center().y), 7.0, lerp(theme::MUTED, Color32::WHITE, t));
+  response.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
 /// A thin bar in a sunken well. `fraction` is drawn as given (animate it before).
 pub fn progress(ui: &mut Ui, width: f32, height: f32, fraction: f32, color: Color32) -> Rect {
   let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());

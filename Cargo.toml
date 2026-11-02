@@ -23,5 +23,7 @@ sys-locale = "0.3"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 toml = "0.8"
+tray-icon = "0.26"
+winresource = "0.1"
 unic-langid = "0.9"
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Registry", "Win32_System_Threading", "Win32_Security"] }

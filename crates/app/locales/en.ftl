@@ -90,3 +90,10 @@ ui-status-problem = Check Settings
 ui-level-label = Level
 ui-account-none-short = No account
 ui-platinum-pending = Platinum pending
+
+ui-tray-open = Open Archi Games
+ui-tray-quit = Quit
+ui-settings-system = System
+ui-autostart = Start with Windows
+ui-autostart-help = Opens in the tray when you sign in. Closing the window keeps it in the tray; to exit completely, use Quit in its icon's menu.
+ui-error-autostart = Couldn't change start with Windows.

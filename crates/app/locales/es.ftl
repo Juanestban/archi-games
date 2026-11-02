@@ -90,3 +90,10 @@ ui-status-problem = Revisa Ajustes
 ui-level-label = Nivel
 ui-account-none-short = Sin cuenta
 ui-platinum-pending = Platino pendiente
+
+ui-tray-open = Abrir Archi Games
+ui-tray-quit = Salir
+ui-settings-system = Sistema
+ui-autostart = Iniciar con Windows
+ui-autostart-help = Se abre en la bandeja al iniciar sesión. Cerrar la ventana la deja en la bandeja; para salir del todo, usa Salir en el menú de su icono.
+ui-error-autostart = No se pudo cambiar el inicio con Windows.

@@ -13,7 +13,7 @@ mod settings;
 mod theme;
 mod widgets;
 
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
 use archi_core::{AchievementDef, GameDefinition, GameProgress, StatSnapshot, Tier};
@@ -24,9 +24,11 @@ use fluent_bundle::FluentValue;
 use icons::Icon;
 
 use crate::catalog::Catalog;
+use crate::desktop::{self, SingleInstance};
 use crate::i18n::{I18n, LanguageChoice};
 use crate::sound::{self, Sounds};
-use crate::worker::{self, Event, Problem, Status};
+use crate::tray::{self, ShellEvent, Tray};
+use crate::worker::{self, Command, Event, Problem, Status};
 
 const SIDEBAR_WIDTH: f32 = 236.0;
 const HEADER_HEIGHT: f32 = 52.0;
@@ -106,10 +108,33 @@ pub struct ArchiApp {
   sounds: Sounds,
   /// 0–100.
   volume: u8,
+
+  tray: Option<Tray>,
+  shell_events: mpsc::Receiver<ShellEvent>,
+  /// Set by the tray's Quit: closing then really exits instead of hiding.
+  quitting: bool,
+  autostart: bool,
+  autostart_failed: bool,
+  /// Started with Windows: hide on the first frame (eframe shows the window after it).
+  start_hidden: bool,
+  _instance: SingleInstance,
+}
+
+/// What `main` builds for the app.
+pub struct Parts {
+  pub catalog: Arc<Catalog>,
+  pub storage: Storage,
+  pub worker: worker::Handle,
+  /// For the tray's events; `shell_events` receives them.
+  pub shell: mpsc::Sender<ShellEvent>,
+  pub shell_events: mpsc::Receiver<ShellEvent>,
+  pub instance: SingleInstance,
+  pub start_hidden: bool,
 }
 
 impl ArchiApp {
-  pub fn new(cc: &eframe::CreationContext<'_>, catalog: Arc<Catalog>, storage: Storage, worker: worker::Handle) -> Self {
+  pub fn new(cc: &eframe::CreationContext<'_>, parts: Parts) -> Self {
+    let Parts { catalog, storage, worker, shell, shell_events, instance, start_hidden } = parts;
     theme::apply(&cc.egui_ctx);
     let language = storage.setting(LanguageChoice::SETTING).ok().flatten().map(|code| LanguageChoice::from_code(&code)).unwrap_or_default();
     let summary = storage.account_summary(&catalog.all(), &catalog.rules).unwrap_or_else(|_| empty_summary(&catalog));
@@ -135,12 +160,60 @@ impl ArchiApp {
       notifier: notify::Notifier::default(),
       sounds: Sounds::new(),
       volume,
+      tray: None,
+      shell_events,
+      quitting: false,
+      autostart: desktop::autostart_enabled(desktop::AUTOSTART_ENTRY),
+      autostart_failed: false,
+      start_hidden,
+      _instance: instance,
       catalog,
       storage,
       worker,
     };
     app.reload();
+    // Without a tray icon, closing the window must quit, or the app would be unreachable.
+    app.tray = Tray::new(&cc.egui_ctx, shell, &app.tray_labels()).ok();
     app
+  }
+
+  fn tray_labels(&self) -> tray::Labels {
+    tray::Labels { show: self.tr("ui-tray-open"), poll: self.tr("ui-poll-now"), quit: self.tr("ui-tray-quit") }
+  }
+
+  fn handle_shell_events(&mut self, ctx: &egui::Context) {
+    while let Ok(event) = self.shell_events.try_recv() {
+      match event {
+        ShellEvent::Show => {
+          ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+          ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+          ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        }
+        ShellEvent::PollNow => self.worker.send(Command::PollNow),
+        ShellEvent::Quit => {
+          self.quitting = true;
+          ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+      }
+    }
+  }
+
+  /// Closing the window keeps the app in the tray.
+  fn close_to_tray(&self, ctx: &egui::Context) {
+    if ctx.input(|i| i.viewport().close_requested()) && !self.quitting && self.tray.is_some() {
+      ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+      ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+    }
+  }
+
+  fn set_autostart(&mut self, enabled: bool) {
+    let result = if enabled {
+      desktop::autostart_command().and_then(|command| desktop::set_autostart(desktop::AUTOSTART_ENTRY, Some(&command)))
+    } else {
+      desktop::set_autostart(desktop::AUTOSTART_ENTRY, None)
+    };
+    self.autostart_failed = result.is_err();
+    self.autostart = desktop::autostart_enabled(desktop::AUTOSTART_ENTRY);
   }
 
   /// Re-reads what the worker may have written.
@@ -466,6 +539,7 @@ fn empty_summary(catalog: &Catalog) -> AccountSummary {
 impl eframe::App for ArchiApp {
   fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     self.handle_events();
+    self.handle_shell_events(ctx);
     // The main window may be minimized or hidden while a game runs; the
     // notification window still needs `ui` to run.
     if self.notifier.is_active() {
@@ -483,6 +557,10 @@ impl eframe::App for ArchiApp {
   fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
     // Keeps "5 min ago" and the like current.
     ui.ctx().request_repaint_after(Duration::from_secs(30));
+    if std::mem::take(&mut self.start_hidden) && self.tray.is_some() {
+      ui.ctx().send_viewport_cmd(egui::ViewportCommand::Visible(false));
+    }
+    self.close_to_tray(ui.ctx());
     self.notifications(ui.ctx());
 
     egui::Panel::top("title-bar").exact_size(chrome::TITLE_BAR_HEIGHT).frame(Frame::NONE.fill(theme::CHROME)).show(ui, |ui| self.title_bar(ui));

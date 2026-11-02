@@ -168,6 +168,32 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   rápida. Se renderizan una vez en segundo plano y se mezclan sin bloquear la
   UI.
 
+### Integración con Windows (decidido al implementar el paso 6)
+
+- **Bandeja:** `tray-icon`, creada en el hilo principal. Clic izquierdo abre la
+  ventana; el menú tiene Abrir, Consultar ahora y Salir (traducidos, se
+  actualizan al cambiar de idioma). Cerrar la ventana (botón o Alt+F4) la
+  oculta; solo "Salir" termina la app. Sin bandeja, cerrar sale.
+- **Inicio con Windows: opcional, apagado por defecto.** Cambia lo decidido en
+  §5: una app que se añade sola a `Run` sin preguntar es lo que hace el malware
+  para persistir, así que lo decide el usuario con un interruptor en Ajustes.
+  La entrada guarda la ruta del `.exe` con `--background`, que arranca con la
+  ventana oculta (se oculta en el primer frame porque eframe la muestra tras
+  él).
+- **Instancia única:** mutex con nombre `Local\ArchiGames.Instance`. Una
+  segunda ejecución activa el evento `Local\ArchiGames.Show` y sale; la
+  primera muestra su ventana.
+- **Icono:** un trofeo blanco sobre el azul de la marca, dibujado en código
+  (`icon.rs`). `build.rs` lo convierte en `.ico` y lo incrusta con nombre y
+  versión (`winresource`); sin el compilador de recursos del SDK solo avisa.
+- **Instalador:** WiX 5 como herramienta local de .NET (`dotnet-tools.json`;
+  la v6 exige aceptar una EULA). MSI por usuario en
+  `%LOCALAPPDATA%\Programs\Archi Games` con acceso directo en el menú Inicio;
+  sin administrador. `cargo-wix` no sirve: solo soporta WiX 3.
+- **Limitación conocida:** desinstalar no borra la entrada de `Run` si el
+  usuario activó el inicio con Windows; conviene desactivarlo antes. Firmar el
+  ejecutable sigue en la fase 2.
+
 ## 3. Modelo de logros
 
 - **Rangos y XP** (puntos de trofeo de PlayStation): bronce 15, plata 30,
@@ -226,7 +252,7 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   - **Historial:** desbloqueos recientes.
   - **Ajustes:** nombre de Epic, clave de API, idioma, volumen, inicio con
     Windows.
-- **Comportamiento:** se inicia con Windows, minimizada en la bandeja. Cerrar
+- **Comportamiento:** puede iniciarse con Windows (opcional, ver paso 6), en la bandeja. Cerrar
   la ventana solo la oculta. Instancia única.
 
 ## 6. Notificaciones y sonido
@@ -269,4 +295,3 @@ instalador MSI y, a medio plazo, ejecutable firmado.
   la tecla de interactuar). Es un hook global de teclado, prohibido por el
   ADR 0001 y típico de keyloggers. Además no es fiable: puertas, munición,
   reanimar, teclas reasignadas, mando y consola.
-- `tray-icon` junto con eframe en Windows (paso 6).

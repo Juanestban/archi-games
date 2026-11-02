@@ -17,7 +17,28 @@ impl ArchiApp {
     self.api_key_settings(ui);
     self.tracking_settings(ui);
     self.sound_settings(ui);
+    self.system_settings(ui);
     self.language_settings(ui);
+  }
+
+  fn system_settings(&mut self, ui: &mut Ui) {
+    let label = self.tr("ui-autostart");
+    let help = self.tr("ui-autostart-help");
+    let failed = self.autostart_failed.then(|| self.tr("ui-error-autostart"));
+    let mut enabled = self.autostart;
+    block(ui, &self.tr("ui-settings-system"), |ui| {
+      ui.horizontal(|ui| {
+        widgets::toggle(ui, &mut enabled);
+        ui.label(theme::body(label, 14.0, 500.0));
+      });
+      ui.label(theme::muted(help));
+      if let Some(failed) = failed {
+        ui.label(RichText::new(failed).color(theme::BAD));
+      }
+    });
+    if enabled != self.autostart {
+      self.set_autostart(enabled);
+    }
   }
 
   fn language_settings(&mut self, ui: &mut Ui) {
@@ -37,6 +58,9 @@ impl ArchiApp {
       let choice = LANGUAGES[i];
       self.language = choice;
       self.i18n.set_language(choice.resolve());
+      if let Some(tray) = &self.tray {
+        tray.set_labels(&self.tray_labels());
+      }
       // Not worth interrupting over: the choice still applies this session.
       let _ = self.storage.set_setting(LanguageChoice::SETTING, choice.code());
     }

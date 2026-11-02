@@ -5,12 +5,14 @@ terminarla y actualiza **Estado actual**.
 
 ## Estado actual
 
-- **Hecho:** pasos 1 (`core`), 2 (`storage`), 3 (tracker de Fortnite), 4 (interfaz) y 5
-  (notificación y sonidos).
+- **Hecho:** fase 1 completa: pasos 1 (`core`), 2 (`storage`), 3 (tracker de Fortnite),
+  4 (interfaz), 5 (notificación y sonidos), el rediseño y 6 (bandeja, inicio con Windows,
+  instancia única e instalador MSI).
   La cuenta del usuario ya está vinculada y tiene su lectura base.
 - **Pendiente del paso 3:** el hito. Tras la próxima partida real del usuario, el
   desbloqueo debe verse en Perfil e Historial.
-- **Siguiente:** paso 6 (bandeja del sistema, inicio con Windows, instancia única, MSI).
+- **Siguiente:** que el usuario pruebe el MSI y el hito del paso 3 con una partida real;
+  después, la fase 2.
 - **Última actualización:** 2026-11-02.
 
 ## Fase 1: versión inicial con Fortnite
@@ -72,11 +74,12 @@ terminarla y actualiza **Estado actual**.
 - [x] Notificación rediseñada: franja del rango, destello que la cruza y línea de tiempo restante
 - [x] Sonidos nuevos: campanas cristalinas en estéreo con reverberación, una variación por rango
 
-### Paso 6: integración con el sistema
-- [ ] Icono en la bandeja (`tray-icon`); cerrar la ventana la oculta
-- [ ] Inicio con Windows vía `HKCU\...\Run`
-- [ ] Instancia única
-- [ ] Instalador MSI (`cargo-wix`)
+### Paso 6: integración con el sistema ✅
+- [x] Icono en la bandeja (`tray-icon`) con menú Abrir / Consultar ahora / Salir; cerrar la ventana la oculta
+- [x] Inicio con Windows vía `HKCU\...\Run`, como interruptor en Ajustes (arranca en la bandeja con `--background`)
+- [x] Instancia única (mutex con nombre); una segunda ejecución muestra la ventana de la primera
+- [x] Icono propio (dibujado en código) en ventana, bandeja y `.exe`, con nombre y versión en el ejecutable
+- [x] Instalador MSI por usuario con WiX 5 (`scripts/build-msi.ps1`), sin permisos de administrador
 
 ## Fase 2
 

@@ -14,7 +14,11 @@ rodio.workspace = true
 sys-locale.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tray-icon.workspace = true
 unic-langid.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+winresource.workspace = true

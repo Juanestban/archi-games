@@ -54,6 +54,16 @@ completar el juego base.
 cargo test --workspace
 ```
 
+## Instalador
+
+```
+dotnet tool restore              # WiX 5, local al repositorio
+.\scripts\build-msi.ps1          # -> target\wix\ArchiGames-<versión>.msi
+```
+
+Se instala por usuario (sin administrador) en
+`%LOCALAPPDATA%\Programs\Archi Games`.
+
 ## Probarlo con tu cuenta
 
 Necesitas una clave gratuita de [fortnite-api.com](https://dash.fortnite-api.com)
