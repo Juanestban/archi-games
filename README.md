@@ -1,7 +1,8 @@
 # Archi Games
 
 Plataforma de escritorio de logros estilo PlayStation para juegos que no tienen
-sistema de logros, empezando por Fortnite. Logros propios, platino por juego,
+sistema de logros (o con logros propios distintos): Fortnite y Counter-Strike 2.
+Logros propios, platino por juego,
 nivel de cuenta y metalogros de la plataforma. Rust nativo con egui.
 
 ## Reglas inquebrantables
@@ -16,7 +17,8 @@ código y no hookea nada. Los datos llegan de APIs públicas. Detalles en
 crates/core               motor de logros: definiciones, evaluación, XP, niveles,
                           trait GameTracker y cuándo consultar (Poller)
 crates/storage            SQLite: lecturas, desbloqueos, cuentas y ajustes
-crates/trackers/fortnite  cliente de fortnite-api.com
+crates/trackers/fortnite  cliente de fortnite-api.com y lector de repeticiones
+crates/trackers/cs2       cliente de la API web de Steam (estadísticas de CS2)
 crates/app                la app: interfaz egui, textos (locales/) e hilo del tracker
 games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
@@ -85,17 +87,28 @@ dotnet tool restore              # WiX 5, local al repositorio
 
 ## Probarlo con tu cuenta
 
-Necesitas una clave gratuita de [fortnite-api.com](https://dash.fortnite-api.com)
-y tener activado en Fortnite *Mostrar en la clasificación de carrera*.
-
 ```
 cargo run
 ```
 
-En **Ajustes**, guarda la clave (va al Administrador de credenciales de
-Windows) y vincula tu nombre de Epic. La primera consulta es la base: el
-progreso cuenta desde ahí. Juega una partida y, al terminarla, el logro aparece
-en **Perfil** e **Historial**.
+En **Ajustes**, elige el juego, guarda su clave (va al Administrador de
+credenciales de Windows) y vincula tu cuenta. La primera consulta es la base:
+el progreso cuenta desde ahí. Juega una partida y, al terminarla, el logro
+aparece en **Perfil** e **Historial**.
+
+- **Fortnite:** clave gratuita de [fortnite-api.com](https://dash.fortnite-api.com),
+  tu nombre de Epic y, en Fortnite, *Mostrar en la clasificación de carrera*.
+- **Counter-Strike 2:** clave gratuita de la API web de Steam en
+  [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (como
+  dominio vale `localhost`), la URL de tu perfil de Steam o tu SteamID64 y, en
+  Steam, el perfil y los *Detalles del juego* en Público.
+
+Para comprobar la API de Steam sin abrir la app:
+
+```
+$env:STEAM_API_KEY = "..."; $env:STEAM_PROFILE = "https://steamcommunity.com/id/..."
+cargo test -p archi-cs2 -- --ignored --nocapture
+```
 
 En Windows, `.cargo/config.toml` obliga a compilar las dependencias en C
 (SQLite) con MSVC aunque el entorno tenga `CC=gcc`.

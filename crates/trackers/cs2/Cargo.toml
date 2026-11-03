@@ -1,0 +1,15 @@
+[package]
+name = "archi-cs2"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+archi-core.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

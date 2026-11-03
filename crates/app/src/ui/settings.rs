@@ -1,4 +1,4 @@
-//! Language, API key, Epic account, tracking status and sound.
+//! Per game (account, API key, tracking), then sound, system, language and updates.
 
 use eframe::egui::{self, RichText, TextEdit, Ui};
 
@@ -14,6 +14,7 @@ impl ArchiApp {
   pub(super) fn settings_screen(&mut self, ui: &mut Ui) {
     ui.label(theme::heading(self.tr("ui-nav-settings"), 30.0));
     ui.add_space(16.0);
+    self.game_picker(ui);
     self.account_settings(ui);
     self.api_key_settings(ui);
     self.tracking_settings(ui);
@@ -36,7 +37,7 @@ impl ArchiApp {
       super::UpdateUi::Available(info) => {
         Some((self.tr_args("ui-update-available", &[("version", info.version.as_str().into())]), theme::ACCENT_INK))
       }
-      super::UpdateUi::Failed(_, problem) => Some((self.tr(problem.token()), theme::BAD)),
+      super::UpdateUi::Failed(_, problem) => Some((self.tr(&problem.token("")), theme::BAD)),
       _ => None,
     };
     let mut auto = self.auto_update;
@@ -114,48 +115,70 @@ impl ArchiApp {
     }
   }
 
+  /// Which game's account, key and tracking the next blocks show.
+  fn game_picker(&mut self, ui: &mut Ui) {
+    let games: Vec<(String, String)> = self.catalog.games().iter().map(|game| (game.game.id.clone(), self.tr(&game.game.name))).collect();
+    let names: Vec<String> = games.iter().map(|(_, name)| name.clone()).collect();
+    let current = games.iter().position(|(id, _)| *id == self.settings_game).unwrap_or(0);
+    let mut picked = None;
+    block(ui, &self.tr("ui-settings-game"), |ui| picked = widgets::segmented(ui, &names, current));
+    if let Some(i) = picked {
+      self.settings_game = games[i].0.clone();
+    }
+  }
+
   fn api_key_settings(&mut self, ui: &mut Ui) {
-    let help = self.tr("ui-settings-api-key-help");
-    let (state, color) = if self.status.has_api_key {
+    let game_id = self.settings_game.clone();
+    let help = self.tr(&format!("{game_id}-api-key-help"));
+    let (state, color) = if self.game(&game_id).status.has_api_key {
       (self.tr("ui-settings-api-key-saved"), theme::GOOD)
     } else {
       (self.tr("ui-settings-api-key-missing"), theme::BAD)
     };
     let save = self.tr("ui-save");
-    block(ui, &self.tr("ui-settings-api-key"), |ui| {
+    let title = self.tr(&format!("{game_id}-api-key"));
+    let Some(game) = self.games.get_mut(&game_id) else { return };
+    let mut send = None;
+    block(ui, &title, |ui| {
       ui.label(theme::muted(help));
       widgets::hud(ui, &state, color);
       ui.add_space(4.0);
       ui.horizontal(|ui| {
-        ui.add(TextEdit::singleline(&mut self.api_key_input).password(true).desired_width(360.0).margin(egui::vec2(10.0, 8.0)));
-        ui.add_enabled_ui(!self.api_key_input.trim().is_empty(), |ui| {
+        ui.add(TextEdit::singleline(&mut game.api_key_input).password(true).desired_width(360.0).margin(egui::vec2(10.0, 8.0)));
+        ui.add_enabled_ui(!game.api_key_input.trim().is_empty(), |ui| {
           if widgets::button(ui, &save, widgets::Kind::Primary).clicked() {
-            self.worker.send(Command::SetApiKey(std::mem::take(&mut self.api_key_input)));
+            send = Some(std::mem::take(&mut game.api_key_input));
           }
         });
       });
     });
+    if let Some(key) = send {
+      self.worker.send(Command::SetApiKey { game: game_id, key });
+    }
   }
 
   fn account_settings(&mut self, ui: &mut Ui) {
-    let linked = self.account.as_ref().map(|account| account.display_name.clone());
-    let hint = self.tr("ui-settings-epic-name");
+    let game_id = self.settings_game.clone();
+    let hint = self.tr(&format!("{game_id}-account-hint"));
+    let title = self.tr(&format!("{game_id}-account"));
     let link = self.tr("ui-link");
-    let result = self.link_result.map(|result| match result {
+    let result = self.game(&game_id).link_result.map(|result| match result {
       Ok(()) => (self.tr("ui-linked-ok"), theme::GOOD),
-      Err(problem) => (self.tr(problem.token()), theme::BAD),
+      Err(problem) => (self.tr(&problem.token(&game_id)), theme::BAD),
     });
-    block(ui, &self.tr("ui-settings-account"), |ui| {
+    let Some(game) = self.games.get_mut(&game_id) else { return };
+    let linked = game.account.as_ref().map(|account| account.display_name.clone());
+    let mut send = None;
+    block(ui, &title, |ui| {
       if let Some(linked) = linked {
         ui.label(theme::heading(linked, 18.0));
       }
       ui.horizontal(|ui| {
-        ui.add(TextEdit::singleline(&mut self.epic_name_input).hint_text(hint).desired_width(260.0).margin(egui::vec2(10.0, 8.0)));
-        let enabled = !self.status.busy && !self.epic_name_input.trim().is_empty();
+        ui.add(TextEdit::singleline(&mut game.name_input).hint_text(hint).desired_width(320.0).margin(egui::vec2(10.0, 8.0)));
+        let enabled = !game.status.busy && !game.name_input.trim().is_empty();
         ui.add_enabled_ui(enabled, |ui| {
           if widgets::button(ui, &link, widgets::Kind::Secondary).clicked() {
-            self.link_result = None;
-            self.worker.send(Command::Link(self.epic_name_input.clone()));
+            send = Some(game.name_input.clone());
           }
         });
       });
@@ -163,28 +186,44 @@ impl ArchiApp {
         ui.label(RichText::new(text).color(color));
       }
     });
+    if let Some(name) = send {
+      game.link_result = None;
+      self.worker.send(Command::Link { game: game_id, name });
+    }
   }
 
   fn tracking_settings(&mut self, ui: &mut Ui) {
-    let game = self.tr(&self.catalog.fortnite.game.name);
-    let running = self.tr_args(if self.status.game_running { "ui-game-running" } else { "ui-game-closed" }, &[("game", game.into())]);
-    let when = self.status.last_poll.map_or_else(|| self.tr("ui-never"), |at| self.when(at));
-    let last_poll = self.tr_args("ui-last-poll", &[("when", when.into())]);
-    let problem = self.status.problem.map(|problem| self.tr(problem.token()));
-    let replays = if self.status.replays > 0 {
-      (self.tr_args("ui-replays-count", &[("count", self.status.replays.into())]), theme::MUTED)
+    let game_id = self.settings_game.clone();
+    let game = self.game(&game_id);
+    let (status, linked) = (game.status.clone(), game.account.is_some());
+    let name = self.catalog.get(&game_id).map(|definition| self.tr(&definition.game.name)).unwrap_or_default();
+    let running = if status.game_running {
+      self.tr_args("ui-game-running", &[("game", name.into())])
     } else {
-      (self.tr("ui-replays-none"), theme::FAINT)
+      self.tr_args("ui-game-closed", &[("game", name.into()), ("note", self.tr(&format!("{game_id}-closed-note")).into())])
     };
+    let when = status.last_poll.map_or_else(|| self.tr("ui-never"), |at| self.when(at));
+    let last_poll = self.tr_args("ui-last-poll", &[("when", when.into())]);
+    let problem = status.problem.map(|problem| self.tr(&problem.token(&game_id)));
+    // Replays are Fortnite's only.
+    let replays = (game_id == archi_fortnite::GAME_ID).then(|| {
+      if status.replays > 0 {
+        (self.tr_args("ui-replays-count", &[("count", status.replays.into())]), theme::MUTED)
+      } else {
+        (self.tr("ui-replays-none"), theme::FAINT)
+      }
+    });
     let auto_delete_label = self.tr("ui-replays-auto-delete");
     let auto_delete_help = self.tr("ui-replays-auto-delete-help");
     let mut auto_delete = self.auto_delete_replays;
-    let button = if self.status.busy { self.tr("ui-busy") } else { self.tr("ui-poll-now") };
-    let can_poll = !self.status.busy && self.status.has_api_key && self.account.is_some();
+    let button = if status.busy { self.tr("ui-busy") } else { self.tr("ui-poll-now") };
+    let can_poll = !status.busy && status.has_api_key && linked;
     block(ui, &self.tr("ui-settings-tracking"), |ui| {
       ui.label(running);
       widgets::hud(ui, &last_poll, theme::MUTED);
-      ui.label(RichText::new(replays.0).color(replays.1));
+      if let Some((text, color)) = &replays {
+        ui.label(RichText::new(text).color(*color));
+      }
       if let Some(problem) = problem {
         ui.label(RichText::new(problem).color(theme::BAD));
       }
@@ -194,12 +233,14 @@ impl ArchiApp {
           self.worker.send(Command::PollNow);
         }
       });
-      ui.add_space(8.0);
-      ui.horizontal(|ui| {
-        widgets::toggle(ui, &mut auto_delete);
-        ui.label(theme::body(auto_delete_label, 14.0, 500.0));
-      });
-      ui.label(theme::muted(auto_delete_help));
+      if replays.is_some() {
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+          widgets::toggle(ui, &mut auto_delete);
+          ui.label(theme::body(auto_delete_label, 14.0, 500.0));
+        });
+        ui.label(theme::muted(auto_delete_help));
+      }
     });
     if auto_delete != self.auto_delete_replays {
       self.set_auto_delete_replays(auto_delete);

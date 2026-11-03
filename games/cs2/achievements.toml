@@ -1,0 +1,114 @@
+# Logros de Counter-Strike 2. Los textos son tokens Fluent: ver locales/{es,en}.ftl.
+# Estadísticas de Steam (GetUserStatsForGame, appid 730) sin el prefijo "total_",
+# en el modo "all". "matches" = partidas jugadas; "wins" son rondas ganadas, así que
+# las victorias de partida son "matches_won".
+
+[game]
+id = "cs2"
+name = "cs2-name"
+
+[[achievement]]
+id = "first_win"
+name = "cs2-first_win-name"
+description = "cs2-first_win-desc"
+tier = "bronze"
+condition = { type = "total", stat = "matches_won", target = 1 }
+
+[[achievement]]
+id = "wins_50"
+name = "cs2-wins_50-name"
+description = "cs2-wins_50-desc"
+tier = "silver"
+condition = { type = "total", stat = "matches_won", target = 50 }
+
+[[achievement]]
+id = "kills_1000"
+name = "cs2-kills_1000-name"
+description = "cs2-kills_1000-desc"
+tier = "gold"
+condition = { type = "total", stat = "kills", target = 1000 }
+
+[[achievement]]
+id = "headshots_500"
+name = "cs2-headshots_500-name"
+description = "cs2-headshots_500-desc"
+tier = "silver"
+condition = { type = "total", stat = "kills_headshot", target = 500 }
+
+[[achievement]]
+id = "mvps_100"
+name = "cs2-mvps_100-name"
+description = "cs2-mvps_100-desc"
+tier = "silver"
+condition = { type = "total", stat = "mvps", target = 100 }
+
+[[achievement]]
+id = "bombs_planted_50"
+name = "cs2-bombs_planted_50-name"
+description = "cs2-bombs_planted_50-desc"
+tier = "bronze"
+condition = { type = "total", stat = "planted_bombs", target = 50 }
+
+[[achievement]]
+id = "bombs_defused_25"
+name = "cs2-bombs_defused_25-name"
+description = "cs2-bombs_defused_25-desc"
+tier = "silver"
+condition = { type = "total", stat = "defused_bombs", target = 25 }
+
+[[achievement]]
+id = "platinum"
+name = "cs2-platinum-name"
+description = "cs2-platinum-desc"
+tier = "platinum"
+
+# Paquete "arsenal": bajas por arma. No cuenta para el platino.
+
+[[achievement]]
+id = "ak47_500"
+name = "cs2-ak47_500-name"
+description = "cs2-ak47_500-desc"
+tier = "silver"
+pack = "arsenal"
+condition = { type = "total", stat = "kills_ak47", target = 500 }
+
+[[achievement]]
+id = "awp_250"
+name = "cs2-awp_250-name"
+description = "cs2-awp_250-desc"
+tier = "silver"
+pack = "arsenal"
+condition = { type = "total", stat = "kills_awp", target = 250 }
+
+[[achievement]]
+id = "knife_25"
+name = "cs2-knife_25-name"
+description = "cs2-knife_25-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", stat = "kills_knife", target = 25 }
+
+[[achievement]]
+id = "zeus_10"
+name = "cs2-zeus_10-name"
+description = "cs2-zeus_10-desc"
+tier = "gold"
+hidden = true
+pack = "arsenal"
+condition = { type = "total", stat = "kills_taser", target = 10 }
+
+[[achievement]]
+id = "he_50"
+name = "cs2-he_50-name"
+description = "cs2-he_50-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", stat = "kills_hegrenade", target = 50 }
+
+[[achievement]]
+id = "molotov_50"
+name = "cs2-molotov_50-name"
+description = "cs2-molotov_50-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", stat = "kills_molotov", target = 50 }

@@ -372,6 +372,45 @@ forzoso (secreto: ser el primero en caer). Como paquete, no cuenta para el
 platino. Ojo: en `all`, cada `top*` viene de un único modo (`top10`/`top25` de
 solo, `top5`/`top12` de dúos, `top3`/`top6` de escuadrones).
 
+### Counter-Strike 2 (fase 2, decidido con el usuario, Q1–Q8)
+
+- **Fuente:** API web de Steam, `ISteamUserStats/GetUserStatsForGame/v2`
+  (appid 730, el de CS:GO). Cada jugador usa su propia clave gratuita de
+  steamcommunity.com/dev/apikey, guardada en el Administrador de credenciales
+  (`cs2.api_key`). Requiere el perfil y los "Detalles del juego" en Público.
+  Valve no documenta estos campos para CS2: los nombres vienen de CS:GO y se
+  validarán con la cuenta real del usuario (test `--ignored` de `archi-cs2`).
+- **Vincular:** URL del perfil (`/id/<nombre>` o `/profiles/<SteamID64>`), el
+  nombre personalizado o el SteamID64. Los nombres se resuelven con
+  `ResolveVanityURL`; el nombre visible y la visibilidad, con
+  `GetPlayerSummaries`. Vincular comprueba que las estadísticas se pueden leer.
+- **En el motor:** los contadores `total_*` van al modo `all` sin el prefijo
+  (`total_kills_ak47` → `kills_ak47`), `total_matches_played` es `matches` y
+  `last_match_*` va al modo `last_match` (para posibles logros por partida si
+  esos campos funcionan en CS2; decidir tras validar, Q7). `wins` son rondas
+  ganadas; las partidas ganadas son `matches_won`.
+- **Proceso:** `cs2.exe`, solo por nombre (ADR 0001), con la misma cadencia de
+  consultas que Fortnite.
+- **Logros base** (platino "Leyenda de Counter-Strike"): Primera victoria,
+  Veterano (50 victorias), Mil bajas, Puntería fina (500 tiros a la cabeza), El
+  mejor de la partida (100 MVP), Experto en explosivos (50 bombas plantadas) y
+  Artificiero (25 desactivadas).
+- **Paquete `arsenal`:** Kalashnikov (500 con AK-47), Francotirador (250 con
+  AWP), A cuchillo (25), Zeus (10 con el táser, secreto), Granadero (50 con HE)
+  y Pirómano (50 con molotov o incendiaria).
+
+### Varios juegos
+
+- El hilo del tracker tiene una ranura por juego (tracker, sesión, `Poller`,
+  estado y clave propios); los eventos y comandos llevan el id del juego. Los
+  trackers son un `enum` porque `GameTracker` usa métodos async.
+- Ajustes tiene un selector de juego; cuenta, clave y seguimiento son por
+  juego. Los textos que dependen del juego (`<id>-account`, `<id>-api-key`,
+  `<id>-error-private`…) viven en `games/<id>/locales`.
+- La píldora de estado y el nombre de la barra lateral resumen todos los
+  juegos (el nombre es el de la primera cuenta vinculada).
+- Los metalogros de la plataforma cuentan los desbloqueos de todos los juegos.
+
 ## Pendiente de investigar
 
 - Límites de peticiones de fortnite-api.com: no están documentados; se respeta `429`/`Retry-After`.

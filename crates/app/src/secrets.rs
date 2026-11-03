@@ -1,7 +1,7 @@
-//! The fortnite-api.com key lives in the OS credential store (Windows
-//! Credential Manager), not in the database.
+//! Each game's API key lives in the OS credential store (Windows Credential
+//! Manager), not in the database, under the game's credential name
+//! (e.g. `fortnite.api_key`).
 
-use archi_fortnite::API_KEY_SETTING;
 use archi_storage::{Storage, StorageError};
 use keyring::Entry;
 use thiserror::Error;
@@ -16,24 +16,20 @@ pub enum SecretError {
   Storage(#[from] StorageError),
 }
 
-pub fn api_key(storage: &Storage) -> Result<Option<String>, SecretError> {
-  let entry = entry()?;
+pub fn api_key(storage: &Storage, name: &str) -> Result<Option<String>, SecretError> {
+  let entry = Entry::new(SERVICE, name)?;
   match entry.get_password() {
     Ok(key) => return Ok(Some(key)),
     Err(keyring::Error::NoEntry) => {}
     Err(error) => return Err(error.into()),
   }
-  // Earlier versions kept it in the settings table: move it out.
-  let Some(key) = storage.setting(API_KEY_SETTING)? else { return Ok(None) };
+  // Earlier versions kept Fortnite's in the settings table under the same name: move it out.
+  let Some(key) = storage.setting(name)? else { return Ok(None) };
   entry.set_password(&key)?;
-  storage.delete_setting(API_KEY_SETTING)?;
+  storage.delete_setting(name)?;
   Ok(Some(key))
 }
 
-pub fn set_api_key(key: &str) -> Result<(), SecretError> {
-  Ok(entry()?.set_password(key)?)
-}
-
-fn entry() -> keyring::Result<Entry> {
-  Entry::new(SERVICE, API_KEY_SETTING)
+pub fn set_api_key(name: &str, key: &str) -> Result<(), SecretError> {
+  Ok(Entry::new(SERVICE, name)?.set_password(key)?)
 }

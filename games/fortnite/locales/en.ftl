@@ -1,5 +1,14 @@
 fortnite-name = Fortnite
 
+fortnite-account = Epic account
+fortnite-account-hint = Epic name
+fortnite-api-key = fortnite-api.com API key
+fortnite-api-key-help = Free at dash.fortnite-api.com. Stored in Windows Credential Manager.
+fortnite-closed-note = console matches count too
+fortnite-error-private = Your stats are private. In Fortnite: Settings > Account and Privacy > Show on Career Leaderboard.
+fortnite-error-not-found = That account doesn't exist or has never played.
+fortnite-error-network = Can't reach fortnite-api.com; will retry.
+
 fortnite-first_win-name = First Crown
 fortnite-first_win-desc = Win your first match.
 fortnite-wins_10-name = Crown Collector

@@ -1,0 +1,30 @@
+{
+  "playerstats": {
+    "steamID": "76561197960287930",
+    "gameName": "ValveTestApp260",
+    "stats": [
+      { "name": "total_kills", "value": 4210 },
+      { "name": "total_deaths", "value": 3890 },
+      { "name": "total_time_played", "value": 702340 },
+      { "name": "total_planted_bombs", "value": 88 },
+      { "name": "total_defused_bombs", "value": 31 },
+      { "name": "total_wins", "value": 3402 },
+      { "name": "total_damage_done", "value": 512330 },
+      { "name": "total_kills_knife", "value": 12 },
+      { "name": "total_kills_hegrenade", "value": 40 },
+      { "name": "total_kills_awp", "value": 310 },
+      { "name": "total_kills_ak47", "value": 1320 },
+      { "name": "total_kills_taser", "value": 3 },
+      { "name": "total_kills_molotov", "value": 22 },
+      { "name": "total_kills_headshot", "value": 1650 },
+      { "name": "total_mvps", "value": 640 },
+      { "name": "total_matches_won", "value": 260 },
+      { "name": "total_matches_played", "value": 512 },
+      { "name": "last_match_kills", "value": 21 },
+      { "name": "last_match_deaths", "value": 15 },
+      { "name": "last_match_mvps", "value": 4 },
+      { "name": "GI.lesson.csgo_instr_explain_buymenu", "value": 13 }
+    ],
+    "achievements": [{ "name": "WIN_BOMB_PLANT", "achieved": 1 }]
+  }
+}

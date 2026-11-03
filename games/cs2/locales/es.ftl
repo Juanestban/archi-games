@@ -1,0 +1,40 @@
+cs2-name = Counter-Strike 2
+
+cs2-account = Cuenta de Steam
+cs2-account-hint = URL de tu perfil de Steam o SteamID64
+cs2-api-key = Clave web de la API de Steam
+cs2-api-key-help = Es gratis en steamcommunity.com/dev/apikey (como dominio vale "localhost"). En Steam, pon en Público tu perfil y los "Detalles del juego". Se guarda en el Administrador de credenciales de Windows.
+cs2-closed-note = también cuentan las partidas jugadas en otro PC
+cs2-error-private = Tus estadísticas de CS2 no son públicas. En Steam: Editar perfil > Privacidad > "Mi perfil" y "Detalles del juego" en Público.
+cs2-error-not-found = No se encontró esa cuenta de Steam o nunca ha jugado a CS2.
+cs2-error-network = No hay conexión con la API de Steam; se reintentará.
+
+cs2-first_win-name = Primera victoria
+cs2-first_win-desc = Gana una partida.
+cs2-wins_50-name = Veterano
+cs2-wins_50-desc = Gana 50 partidas.
+cs2-kills_1000-name = Mil bajas
+cs2-kills_1000-desc = Consigue 1000 bajas.
+cs2-headshots_500-name = Puntería fina
+cs2-headshots_500-desc = Consigue 500 bajas con tiros a la cabeza.
+cs2-mvps_100-name = El mejor de la partida
+cs2-mvps_100-desc = Sé el MVP de 100 rondas.
+cs2-bombs_planted_50-name = Experto en explosivos
+cs2-bombs_planted_50-desc = Planta 50 bombas.
+cs2-bombs_defused_25-name = Artificiero
+cs2-bombs_defused_25-desc = Desactiva 25 bombas.
+cs2-platinum-name = Leyenda de Counter-Strike
+cs2-platinum-desc = Consigue todos los logros de Counter-Strike 2.
+
+cs2-ak47_500-name = Kalashnikov
+cs2-ak47_500-desc = Consigue 500 bajas con la AK-47.
+cs2-awp_250-name = Francotirador
+cs2-awp_250-desc = Consigue 250 bajas con la AWP.
+cs2-knife_25-name = A cuchillo
+cs2-knife_25-desc = Consigue 25 bajas con el cuchillo.
+cs2-zeus_10-name = Zeus
+cs2-zeus_10-desc = Consigue 10 bajas con el táser Zeus x27.
+cs2-he_50-name = Granadero
+cs2-he_50-desc = Consigue 50 bajas con granadas explosivas.
+cs2-molotov_50-name = Pirómano
+cs2-molotov_50-desc = Consigue 50 bajas con molotov o granada incendiaria.

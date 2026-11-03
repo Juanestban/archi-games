@@ -13,11 +13,11 @@ mod settings;
 mod theme;
 mod widgets;
 
-use std::sync::{Arc, mpsc};
+use std::collections::BTreeMap;
+use std::sync::{Arc, LazyLock, mpsc};
 use std::time::Duration;
 
 use archi_core::{AchievementDef, GameDefinition, GameProgress, StatSnapshot, Tier};
-use archi_fortnite::GAME_ID;
 use archi_storage::{AccountSummary, LinkedAccount, PLATFORM_ID, Storage, Timestamp, UnlockRecord};
 use eframe::egui::{self, Align2, Color32, Frame, Id, Margin, Rect, RichText, ScrollArea, Sense, Ui, pos2, vec2};
 use fluent_bundle::FluentValue;
@@ -109,12 +109,11 @@ pub struct ArchiApp {
   /// egui time when `screen` was shown, for the page transition.
   shown_at: f64,
 
-  status: Status,
-  progress: GameProgress,
+  /// Per game id, for every game in the catalog.
+  games: BTreeMap<String, GameUi>,
   platform_progress: GameProgress,
   summary: AccountSummary,
   history: Vec<UnlockRecord>,
-  account: Option<LinkedAccount>,
   load_failed: bool,
 
   // Achievements screen.
@@ -122,10 +121,8 @@ pub struct ArchiApp {
   state_filter: StateFilter,
   tier_filter: Option<Tier>,
 
-  // Settings screen.
-  api_key_input: String,
-  epic_name_input: String,
-  link_result: Option<Result<(), Problem>>,
+  // Settings screen: the game whose account and key are shown.
+  settings_game: String,
 
   notifier: notify::Notifier,
   sounds: Sounds,
@@ -174,19 +171,15 @@ impl ArchiApp {
       language,
       screen: Screen::Profile,
       shown_at: 0.0,
-      status: Status::default(),
-      progress: GameProgress::default(),
+      games: catalog.games().iter().map(|game| (game.game.id.clone(), GameUi::default())).collect(),
       platform_progress: GameProgress::default(),
       summary,
       history: Vec::new(),
-      account: None,
       load_failed: false,
-      shown_game: GAME_ID.into(),
+      shown_game: archi_fortnite::GAME_ID.into(),
       state_filter: StateFilter::All,
       tier_filter: None,
-      api_key_input: String::new(),
-      epic_name_input: String::new(),
-      link_result: None,
+      settings_game: archi_fortnite::GAME_ID.into(),
       notifier: notify::Notifier::default(),
       sounds: Sounds::new(),
       volume,
@@ -258,7 +251,9 @@ impl ArchiApp {
     let loaded = (|| {
       self.summary = self.storage.account_summary(&all, &self.catalog.rules)?;
       self.history = self.storage.unlocks()?;
-      self.account = self.storage.account(GAME_ID)?;
+      for (game_id, game) in &mut self.games {
+        game.account = self.storage.account(game_id)?;
+      }
       let mut platform = GameProgress::with_baseline(StatSnapshot::new());
       platform.last = Some(self.summary.platform_stats());
       platform.unlocked = self.storage.unlocked_ids(PLATFORM_ID)?;
@@ -271,20 +266,21 @@ impl ArchiApp {
   fn handle_events(&mut self) {
     while let Some(event) = self.worker.try_recv() {
       match event {
-        Event::Status(status) => self.status = status,
-        Event::Progress(progress) => self.progress = progress,
+        Event::Status(game_id, status) => self.games.entry(game_id).or_default().status = status,
+        Event::Progress(game_id, progress) => self.games.entry(game_id).or_default().progress = progress,
         Event::Unlocked(unlocks) => {
           let level_before = self.summary.level.level;
           self.reload();
           let level = self.summary.level.level;
           self.notifier.push(notify::toasts(&self.catalog, &unlocks, (level > level_before).then_some(level)));
         }
-        Event::Linked => {
-          self.link_result = Some(Ok(()));
-          self.epic_name_input.clear();
+        Event::Linked(game_id) => {
+          let game = self.games.entry(game_id).or_default();
+          game.link_result = Some(Ok(()));
+          game.name_input.clear();
           self.reload();
         }
-        Event::LinkFailed(problem) => self.link_result = Some(Err(problem)),
+        Event::LinkFailed(game_id, problem) => self.games.entry(game_id).or_default().link_result = Some(Err(problem)),
         Event::UpdateAvailable(info) => self.update = UpdateUi::Available(info),
         Event::UpToDate => self.update = UpdateUi::UpToDate,
         Event::UpdateProgress(fraction) => {
@@ -336,7 +332,17 @@ impl ArchiApp {
   }
 
   fn progress_of(&self, game_id: &str) -> &GameProgress {
-    if game_id == PLATFORM_ID { &self.platform_progress } else { &self.progress }
+    if game_id == PLATFORM_ID { &self.platform_progress } else { &self.game(game_id).progress }
+  }
+
+  fn game(&self, game_id: &str) -> &GameUi {
+    static NONE: LazyLock<GameUi> = LazyLock::new(GameUi::default);
+    self.games.get(game_id).unwrap_or(&NONE)
+  }
+
+  /// The name shown for the player: the first linked account, in catalog order.
+  fn display_name(&self) -> Option<&str> {
+    self.catalog.games().iter().find_map(|game| self.game(&game.game.id).account.as_ref()).map(|account| account.display_name.as_str())
   }
 
   /// (unlocked, total) achievements of a game.
@@ -365,22 +371,27 @@ impl ArchiApp {
     });
   }
 
-  /// Tracking at a glance: a dot and a mono label.
+  /// Tracking at a glance, over every game: a dot and a mono label.
   fn status_pill(&self, ui: &mut Ui) {
-    let problem = self.status.problem.or(self.load_failed.then_some(Problem::Storage));
-    let ready = self.status.has_api_key && self.account.is_some();
+    let problem = self
+      .games
+      .iter()
+      .find_map(|(game_id, game)| game.status.problem.map(|problem| problem.token(game_id)))
+      .or(self.load_failed.then(|| Problem::Storage.token("")));
+    let any = |test: fn(&GameUi) -> bool| self.games.values().any(test);
+    let busy = any(|game| game.status.busy);
     let (color, token) = match problem {
       Some(_) => (theme::BAD, "ui-status-problem"),
-      None if self.status.busy => (theme::ACCENT_400, "ui-busy"),
-      None if !ready => (theme::FAINT, "ui-status-setup"),
-      None if self.status.game_running => (theme::GOOD, "ui-status-in-game"),
+      None if busy => (theme::ACCENT_400, "ui-busy"),
+      None if !any(|game| game.status.has_api_key && game.account.is_some()) => (theme::FAINT, "ui-status-setup"),
+      None if any(|game| game.status.game_running) => (theme::GOOD, "ui-status-in-game"),
       None => (theme::GOOD, "ui-status-tracking"),
     };
     let label = widgets::caps(ui, &self.tr(token), theme::HUD_SIZE, theme::MUTED);
     let (rect, response) = ui.allocate_exact_size(vec2(label.size().x + 34.0, 24.0), Sense::hover());
     ui.painter().rect(rect, theme::RADIUS, theme::WASH, theme::hairline(), egui::StrokeKind::Inside);
     let dot = pos2(rect.left() + 12.0, rect.center().y);
-    if self.status.busy {
+    if busy {
       // Pulses while a check runs.
       let pulse = ((ui.input(|i| i.time) * 4.0).sin() * 0.5 + 0.5) as f32;
       ui.painter().circle_filled(dot, 3.0 + 3.0 * pulse, theme::fade(color, 0.35 * (1.0 - pulse)));
@@ -389,7 +400,7 @@ impl ArchiApp {
     ui.painter().circle_filled(dot, 3.0, color);
     ui.painter().galley(pos2(rect.left() + 22.0, rect.center().y - label.size().y / 2.0), label, theme::MUTED);
     if let Some(problem) = problem {
-      response.on_hover_text(self.tr(problem.token()));
+      response.on_hover_text(self.tr(&problem));
     }
   }
 
@@ -457,12 +468,12 @@ impl ArchiApp {
     (rect, response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked())
   }
 
-  /// Avatar, Epic name, level and a thin XP bar.
+  /// Avatar, the player's name, level and a thin XP bar.
   fn account_card(&self, ui: &mut Ui) {
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::hover());
     let p = ui.painter();
     p.rect(rect, theme::RADIUS, theme::WASH, theme::hairline(), egui::StrokeKind::Inside);
-    let name = self.account.as_ref().map_or_else(|| self.tr("ui-account-none-short"), |a| a.display_name.clone());
+    let name = self.display_name().map_or_else(|| self.tr("ui-account-none-short"), str::to_owned);
     let avatar = pos2(rect.left() + 26.0, rect.center().y);
     p.circle_filled(avatar, 15.0, theme::ACCENT);
     let initial = name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default();
@@ -523,7 +534,7 @@ impl ArchiApp {
             widgets::progress(ui, 220.0, 4.0, *fraction, theme::ACCENT);
           }
           UpdateUi::Failed(_, problem) => {
-            ui.label(RichText::new(self.tr(problem.token())).color(theme::BAD));
+            ui.label(RichText::new(self.tr(&problem.token(""))).color(theme::BAD));
           }
           _ => {
             widgets::hud(ui, &self.tr_args("ui-update-available", &[("version", info.version.as_str().into())]), theme::INK);
@@ -557,7 +568,7 @@ impl ArchiApp {
     let count = self.replays_to_review.len() as u64;
     let megabytes = self.replays_to_review.iter().map(|file| file.size).sum::<u64>() as f64 / (1024.0 * 1024.0);
     let text = self.tr_args("ui-replays-review", &[("count", count.into()), ("size", format!("{megabytes:.1}").into())]);
-    let waiting = self.status.game_running.then(|| self.tr("ui-replays-review-wait"));
+    let waiting = self.game(archi_fortnite::GAME_ID).status.game_running.then(|| self.tr("ui-replays-review-wait"));
     let (delete, keep, always) = (self.tr("ui-replays-delete"), self.tr("ui-replays-keep"), self.tr("ui-replays-delete-always"));
     let mut action = None;
     banner_frame().show(ui, |ui| {
@@ -693,6 +704,18 @@ impl ArchiApp {
       });
     });
   }
+}
+
+/// A game's state as the UI knows it, and its Settings inputs.
+#[derive(Default)]
+struct GameUi {
+  status: Status,
+  progress: GameProgress,
+  account: Option<LinkedAccount>,
+  api_key_input: String,
+  /// Whatever identifies the account: Epic name, Steam profile…
+  name_input: String,
+  link_result: Option<Result<(), Problem>>,
 }
 
 #[derive(Clone, Copy)]

@@ -8,6 +8,10 @@ use archi_core::GameDefinition;
 
 const LOCALES: [&str; 2] = ["es", "en"];
 
+/// Per-game texts the app's Settings uses (checked by the app's own tests).
+const APP_TEXTS: [&str; 8] =
+  ["account", "account-hint", "api-key", "api-key-help", "closed-note", "error-private", "error-not-found", "error-network"];
+
 /// Message ids defined in a Fluent file (top-level `id = ...` lines).
 fn fluent_ids(source: &str) -> BTreeSet<String> {
   source
@@ -32,7 +36,9 @@ fn bundled_games_parse_and_are_translated() {
       let path = dir.join("locales").join(format!("{locale}.ftl"));
       let ids = fluent_ids(&fs::read_to_string(&path).unwrap());
       let missing: Vec<_> = tokens.difference(&ids).collect();
-      let unused: Vec<_> = ids.difference(&tokens).collect();
+      // The app's Settings texts for the game (`<game>-account`, …) aren't in the definition.
+      let app_text = |id: &&String| APP_TEXTS.iter().any(|suffix| **id == format!("{}-{suffix}", definition.game.id));
+      let unused: Vec<_> = ids.difference(&tokens).filter(|id| !app_text(id)).collect();
       assert!(missing.is_empty(), "{}: missing {missing:?}", path.display());
       assert!(unused.is_empty(), "{}: unused {unused:?}", path.display());
     }

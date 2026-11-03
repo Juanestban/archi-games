@@ -29,8 +29,8 @@ impl ArchiApp {
         ui.add_space(24.0);
         ui.vertical(|ui| {
           ui.add_space(14.0);
-          match &self.account {
-            Some(account) => ui.label(theme::heading(&account.display_name, 22.0)),
+          match self.display_name() {
+            Some(name) => ui.label(theme::heading(name, 22.0)),
             None => ui.label(RichText::new(self.tr("ui-account-none")).color(theme::BAD)),
           };
           ui.add_space(10.0);

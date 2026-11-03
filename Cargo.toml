@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/app", "crates/core", "crates/storage", "crates/trackers/*"]
 
 [workspace.package]
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Juanestban/archi-games"
@@ -11,6 +11,7 @@ repository = "https://github.com/Juanestban/archi-games"
 [workspace.dependencies]
 aes = "0.8"
 archi-core = { path = "crates/core" }
+archi-cs2 = { path = "crates/trackers/cs2" }
 archi-fortnite = { path = "crates/trackers/fortnite" }
 archi-storage = { path = "crates/storage" }
 directories = "6"

@@ -1,0 +1,40 @@
+cs2-name = Counter-Strike 2
+
+cs2-account = Steam account
+cs2-account-hint = Your Steam profile URL or SteamID64
+cs2-api-key = Steam Web API key
+cs2-api-key-help = It's free at steamcommunity.com/dev/apikey ("localhost" works as the domain). On Steam, set your profile and "Game details" to Public. It's kept in Windows Credential Manager.
+cs2-closed-note = matches played on another PC count too
+cs2-error-private = Your CS2 stats aren't public. On Steam: Edit Profile > Privacy Settings > "My profile" and "Game details" set to Public.
+cs2-error-not-found = That Steam account wasn't found or has never played CS2.
+cs2-error-network = Can't reach the Steam Web API; it will retry.
+
+cs2-first_win-name = First Victory
+cs2-first_win-desc = Win a match.
+cs2-wins_50-name = Veteran
+cs2-wins_50-desc = Win 50 matches.
+cs2-kills_1000-name = A Thousand Kills
+cs2-kills_1000-desc = Get 1000 kills.
+cs2-headshots_500-name = Sharpshooter
+cs2-headshots_500-desc = Get 500 headshot kills.
+cs2-mvps_100-name = Most Valuable
+cs2-mvps_100-desc = Be the MVP of 100 rounds.
+cs2-bombs_planted_50-name = Demolitions Expert
+cs2-bombs_planted_50-desc = Plant 50 bombs.
+cs2-bombs_defused_25-name = Bomb Squad
+cs2-bombs_defused_25-desc = Defuse 25 bombs.
+cs2-platinum-name = Counter-Strike Legend
+cs2-platinum-desc = Earn every Counter-Strike 2 achievement.
+
+cs2-ak47_500-name = Kalashnikov
+cs2-ak47_500-desc = Get 500 kills with the AK-47.
+cs2-awp_250-name = Sniper
+cs2-awp_250-desc = Get 250 kills with the AWP.
+cs2-knife_25-name = Up Close
+cs2-knife_25-desc = Get 25 knife kills.
+cs2-zeus_10-name = Zeus
+cs2-zeus_10-desc = Get 10 kills with the Zeus x27 taser.
+cs2-he_50-name = Grenadier
+cs2-he_50-desc = Get 50 HE grenade kills.
+cs2-molotov_50-name = Firestarter
+cs2-molotov_50-desc = Get 50 kills with Molotovs or incendiary grenades.

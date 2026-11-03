@@ -18,12 +18,15 @@ terminarla y actualiza **Estado actual**.
   usuario se actualizó desde la app.
 - **En curso:** fase 2. Hecho: lector de repeticiones, paquete "Repeticiones" con 7 logros,
   limpieza de la entrada de inicio con Windows al desinstalar, borrar repeticiones ya leídas
-  (preguntando o automático) y paquete "career" con 10 logros más de la API.
+  (preguntando o automático), paquete "career" con 10 logros más de la API y
+  Counter-Strike 2 (la app ya sigue varios juegos).
   La API ya funciona con la cuenta real: 7 lecturas guardadas que siguen sus partidas.
   Falta validar el lector con un `.replay` real del usuario (debe activar Grabar repeticiones).
-- **Siguiente:** con repeticiones reales, comprobar el lector y la unidad de la distancia; después,
-  logros por tipo de arma. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
-- **Última actualización:** 2026-11-02.
+- **Siguiente:** validar CS2 con la clave y el perfil de Steam del usuario (test `--ignored` de
+  `archi-cs2`); con repeticiones reales, comprobar el lector y la unidad de la distancia y después
+  los logros de Fortnite por tipo de arma. Sigue pendiente el hito del paso 3 (un desbloqueo real
+  tras una partida).
+- **Última actualización:** 2026-11-03.
 
 ## Fase 1: versión inicial con Fortnite
 
@@ -110,6 +113,11 @@ terminarla y actualiza **Estado actual**.
 - [x] Paquete "career" con 10 logros de estadísticas de la API que el juego base no usaba
 - [ ] Validar el lector con repeticiones reales del usuario (y la unidad de la distancia)
 - [ ] Logros por tipo de arma (eventos `playerElim`): averiguar qué número es cada arma
+- [x] Varios juegos a la vez: una ranura por juego en el tracker y Ajustes por juego
+- [x] Counter-Strike 2 con la API web de Steam: 7 logros base con platino y paquete "arsenal"
+  con 6 logros por arma
+- [ ] Validar CS2 con la cuenta real del usuario (nombres de los campos y si `last_match_*`
+  sirve para logros por partida)
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
 - [ ] ~~Firmar el ejecutable y el MSI~~: aplazado por decisión del usuario (2026-11-03). Se publica

@@ -4,7 +4,8 @@
 use archi_core::{DefinitionError, GameDefinition, Progression};
 
 pub struct Catalog {
-  pub fortnite: GameDefinition,
+  /// Real games, in the order the app shows them.
+  games: Vec<GameDefinition>,
   pub platform: GameDefinition,
   pub rules: Progression,
 }
@@ -12,23 +13,53 @@ pub struct Catalog {
 impl Catalog {
   pub fn bundled() -> Result<Self, DefinitionError> {
     Ok(Self {
-      fortnite: GameDefinition::from_toml_str(include_str!("../../../games/fortnite/achievements.toml"))?,
+      games: vec![
+        GameDefinition::from_toml_str(include_str!("../../../games/fortnite/achievements.toml"))?,
+        GameDefinition::from_toml_str(include_str!("../../../games/cs2/achievements.toml"))?,
+      ],
       platform: GameDefinition::from_toml_str(include_str!("../../../games/platform/achievements.toml"))?,
       rules: Progression::default(),
     })
   }
 
   /// Real games, without the platform's meta-achievements.
-  pub fn games(&self) -> [&GameDefinition; 1] {
-    [&self.fortnite]
+  pub fn games(&self) -> Vec<&GameDefinition> {
+    self.games.iter().collect()
   }
 
   /// Every definition, the platform's last.
-  pub fn all(&self) -> [&GameDefinition; 2] {
-    [&self.fortnite, &self.platform]
+  pub fn all(&self) -> Vec<&GameDefinition> {
+    self.games.iter().chain([&self.platform]).collect()
   }
 
   pub fn get(&self, game_id: &str) -> Option<&GameDefinition> {
     self.all().into_iter().find(|definition| definition.game.id == game_id)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::i18n::{I18n, Language};
+
+  /// Settings shows these for each game, so every game needs them in both languages.
+  #[test]
+  fn every_game_has_its_settings_texts() {
+    let catalog = Catalog::bundled().unwrap();
+    for language in [Language::Es, Language::En] {
+      let i18n = I18n::new(language);
+      for game in catalog.games() {
+        for suffix in
+          ["name", "account", "account-hint", "api-key", "api-key-help", "closed-note", "error-private", "error-not-found", "error-network"]
+        {
+          let token = format!("{}-{suffix}", game.game.id);
+          assert_ne!(i18n.tr(&token), token, "{token} missing in {language:?}");
+        }
+        for achievement in &game.achievements {
+          assert_ne!(i18n.tr(&achievement.name), achievement.name, "{} missing in {language:?}", achievement.name);
+          assert_ne!(i18n.tr(&achievement.description), achievement.description);
+        }
+      }
+    }
   }
 }

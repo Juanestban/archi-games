@@ -1,5 +1,14 @@
 fortnite-name = Fortnite
 
+fortnite-account = Cuenta de Epic
+fortnite-account-hint = Nombre de Epic
+fortnite-api-key = Clave de API de fortnite-api.com
+fortnite-api-key-help = Es gratis en dash.fortnite-api.com. Se guarda en el Administrador de credenciales de Windows.
+fortnite-closed-note = también cuentan las partidas en consola
+fortnite-error-private = Tus estadísticas son privadas. En Fortnite: Ajustes > Cuenta y privacidad > Mostrar en la clasificación de carrera.
+fortnite-error-not-found = Esa cuenta no existe o nunca ha jugado.
+fortnite-error-network = No hay conexión con fortnite-api.com; se reintentará.
+
 fortnite-first_win-name = Primera corona
 fortnite-first_win-desc = Gana tu primera partida.
 fortnite-wins_10-name = Coleccionista de coronas

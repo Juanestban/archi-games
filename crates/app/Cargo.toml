@@ -7,6 +7,7 @@ repository.workspace = true
 
 [dependencies]
 archi-core.workspace = true
+archi-cs2.workspace = true
 archi-fortnite.workspace = true
 archi-storage.workspace = true
 eframe.workspace = true

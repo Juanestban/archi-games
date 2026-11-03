@@ -22,6 +22,8 @@ pub enum SessionError {
 pub struct Session<'a> {
   storage: &'a Storage,
   game: &'a GameDefinition,
+  /// Every real game, for the platform's meta-achievements.
+  games: Vec<&'a GameDefinition>,
   platform: &'a GameDefinition,
   rules: &'a Progression,
   account_id: String,
@@ -36,18 +38,23 @@ impl<'a> Session<'a> {
   pub fn start(
     storage: &'a Storage,
     game: &'a GameDefinition,
+    games: Vec<&'a GameDefinition>,
     platform: &'a GameDefinition,
     rules: &'a Progression,
     account_id: &str,
   ) -> Result<(Self, Vec<Unlock>), StorageError> {
     let (progress, mut unlocks) = storage.rebuild_progress(game, account_id)?;
-    unlocks.extend(storage.evaluate_platform(platform, &[game], rules, unix_now())?);
+    unlocks.extend(storage.evaluate_platform(platform, &games, rules, unix_now())?);
     let replay_totals = storage.replay_totals(&game.game.id, account_id)?;
-    Ok((Self { storage, game, platform, rules, account_id: account_id.to_owned(), progress, replay_totals }, unlocks))
+    Ok((Self { storage, game, games, platform, rules, account_id: account_id.to_owned(), progress, replay_totals }, unlocks))
   }
 
   pub fn account_id(&self) -> &str {
     &self.account_id
+  }
+
+  pub fn game_id(&self) -> &str {
+    &self.game.game.id
   }
 
   fn with_replays(totals: &BTreeMap<String, u64>, mut snapshot: StatSnapshot) -> StatSnapshot {
@@ -73,7 +80,7 @@ impl<'a> Session<'a> {
     let mut unlocks = self.storage.ingest_replay(self.game, &self.account_id, &mut self.progress, snapshot, &file, at)?;
     self.replay_totals = totals;
     if !unlocks.is_empty() {
-      unlocks.extend(self.storage.evaluate_platform(self.platform, &[self.game], self.rules, at)?);
+      unlocks.extend(self.storage.evaluate_platform(self.platform, &self.games, self.rules, at)?);
     }
     Ok(unlocks)
   }
@@ -87,7 +94,7 @@ impl<'a> Session<'a> {
   pub fn record(&mut self, snapshot: StatSnapshot, at: Timestamp) -> Result<Vec<Unlock>, StorageError> {
     let mut unlocks = self.storage.ingest(self.game, &self.account_id, &mut self.progress, snapshot, at)?;
     if !unlocks.is_empty() {
-      unlocks.extend(self.storage.evaluate_platform(self.platform, &[self.game], self.rules, at)?);
+      unlocks.extend(self.storage.evaluate_platform(self.platform, &self.games, self.rules, at)?);
     }
     Ok(unlocks)
   }
@@ -167,7 +174,7 @@ mod tests {
     let (fortnite, platform) = definitions();
     let rules = Progression::default();
     let storage = Storage::open_in_memory().unwrap();
-    let (mut session, _) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    let (mut session, _) = Session::start(&storage, &fortnite, vec![&fortnite], &platform, &rules, "acc").unwrap();
     let tracker = ReplayTracker::new([Ok(totals(10, 0, 5)), Ok(totals(10, 0, 5))]);
     session.poll(&tracker).await.unwrap();
 
@@ -182,7 +189,7 @@ mod tests {
     assert!(storage.replay_seen("fortnite", "3.replay", 10).unwrap());
 
     // Restarting rebuilds the same totals.
-    let (session, _) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    let (session, _) = Session::start(&storage, &fortnite, vec![&fortnite], &platform, &rules, "acc").unwrap();
     assert_eq!(session.replay_totals["damage"], 1300);
   }
 
@@ -191,7 +198,7 @@ mod tests {
     let (fortnite, platform) = definitions();
     let rules = Progression::default();
     let storage = Storage::open_in_memory().unwrap();
-    let (mut session, retro) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    let (mut session, retro) = Session::start(&storage, &fortnite, vec![&fortnite], &platform, &rules, "acc").unwrap();
     assert!(retro.is_empty());
 
     let tracker = ReplayTracker::new([Ok(totals(300, 20, 500)), Ok(totals(300, 20, 500)), Ok(totals(301, 21, 512))]);
@@ -206,7 +213,7 @@ mod tests {
     let (fortnite, platform) = definitions();
     let rules = Progression::default();
     let storage = Storage::open_in_memory().unwrap();
-    let (mut session, _) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    let (mut session, _) = Session::start(&storage, &fortnite, vec![&fortnite], &platform, &rules, "acc").unwrap();
 
     let tracker = ReplayTracker::new([Ok(totals(10, 0, 5)), Err(TrackError::Private), Ok(totals(11, 1, 5))]);
     session.poll(&tracker).await.unwrap();
@@ -223,12 +230,12 @@ mod tests {
     let storage = Storage::open_in_memory().unwrap();
     let tracker = ReplayTracker::new([Ok(totals(10, 0, 5)), Ok(totals(11, 1, 6)), Ok(totals(12, 2, 7))]);
 
-    let (mut session, _) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    let (mut session, _) = Session::start(&storage, &fortnite, vec![&fortnite], &platform, &rules, "acc").unwrap();
     session.poll(&tracker).await.unwrap();
     session.poll(&tracker).await.unwrap();
     let before = session.progress().clone();
 
-    let (mut session, retro) = Session::start(&storage, &fortnite, &platform, &rules, "acc").unwrap();
+    let (mut session, retro) = Session::start(&storage, &fortnite, vec![&fortnite], &platform, &rules, "acc").unwrap();
     assert!(retro.is_empty());
     assert_eq!(session.progress(), &before);
     // Second win in a row: the streak survived the restart, nothing repeats.

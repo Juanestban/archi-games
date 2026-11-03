@@ -1,5 +1,5 @@
-//! The tracker thread: a tokio runtime that watches the game's process,
-//! polls the API when due and stores unlocks. It owns its own database
+//! The tracker thread: a tokio runtime that watches each game's process,
+//! polls its API when due and stores unlocks. It owns its own database
 //! connection; the UI talks to it through [`Command`]s and gets [`Event`]s
 //! back, each one waking the UI with `request_repaint`.
 
@@ -8,8 +8,9 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use archi_core::{GameProgress, PollPolicy, Poller, TrackError};
-use archi_fortnite::{FortniteTracker, GAME_ID, PROCESS_NAMES};
+use archi_core::{AccountInfo, GameDefinition, GameProgress, GameTracker, PollPolicy, Poller, StatSnapshot, TrackError};
+use archi_cs2::Cs2Tracker;
+use archi_fortnite::FortniteTracker;
 use archi_storage::{LinkedAccount, Storage, Timestamp, Unlock, unix_now};
 use eframe::egui;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
@@ -37,8 +38,16 @@ const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(15);
 const UPDATE_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 
 pub enum Command {
-  SetApiKey(String),
-  Link(String),
+  SetApiKey {
+    game: String,
+    key: String,
+  },
+  /// `name`: whatever identifies the account for that game (Epic name, Steam profile…).
+  Link {
+    game: String,
+    name: String,
+  },
+  /// Every game with a linked account.
   PollNow,
   /// `manual`: the player asked, so "up to date" and failures are reported too.
   CheckUpdate {
@@ -68,12 +77,13 @@ pub struct UpdateInfo {
 }
 
 pub enum Event {
-  Status(Status),
-  Progress(GameProgress),
+  /// A game's tracking state, by game id.
+  Status(String, Status),
+  Progress(String, GameProgress),
   /// In notification order (platinum, then meta-achievements, last).
   Unlocked(Vec<Unlock>),
-  Linked,
-  LinkFailed(Problem),
+  Linked(String),
+  LinkFailed(String, Problem),
   UpdateAvailable(UpdateInfo),
   UpToDate,
   /// Download progress, 0–1.
@@ -92,7 +102,7 @@ pub struct Status {
   pub last_poll: Option<Timestamp>,
   pub busy: bool,
   pub problem: Option<Problem>,
-  /// Replays read for the linked account so far.
+  /// Fortnite replays read for the linked account so far.
   pub replays: u32,
 }
 
@@ -114,20 +124,23 @@ pub enum Problem {
 }
 
 impl Problem {
-  pub fn token(self) -> &'static str {
-    match self {
+  /// The message's token. Private profiles, unknown accounts and network errors are worded
+  /// per game (`<game>-error-…`); `game_id` is ignored for the rest.
+  pub fn token(self, game_id: &str) -> String {
+    let token = match self {
+      Self::Private => return format!("{game_id}-error-private"),
+      Self::NotFound => return format!("{game_id}-error-not-found"),
+      Self::Network => return format!("{game_id}-error-network"),
       Self::NoApiKey => "ui-error-no-api-key",
-      Self::Private => "ui-error-private",
-      Self::NotFound => "ui-error-not-found",
       Self::Unauthorized => "ui-error-unauthorized",
       Self::RateLimited => "ui-error-rate-limited",
-      Self::Network => "ui-error-network",
       Self::Unexpected => "ui-error-unexpected",
       Self::Storage => "ui-error-storage",
       Self::Credentials => "ui-error-credentials",
       Self::Update => "ui-error-update",
       Self::UpdateIntegrity => "ui-error-update-integrity",
-    }
+    };
+    token.to_owned()
   }
 }
 
@@ -142,6 +155,76 @@ impl From<&TrackError> for Problem {
       TrackError::Unexpected(_) => Self::Unexpected,
     }
   }
+}
+
+/// A game the app can track: how to recognise it and how to reach its API.
+struct Game {
+  id: &'static str,
+  process_names: &'static [&'static str],
+  /// The credential holding the player's API key.
+  api_key: &'static str,
+}
+
+const GAMES: [Game; 2] = [
+  Game { id: archi_fortnite::GAME_ID, process_names: archi_fortnite::PROCESS_NAMES, api_key: archi_fortnite::API_KEY_SETTING },
+  Game { id: archi_cs2::GAME_ID, process_names: archi_cs2::PROCESS_NAMES, api_key: archi_cs2::API_KEY_SETTING },
+];
+
+/// `GameTracker` isn't object-safe (async methods), so the trackers are an enum.
+enum Tracker {
+  Fortnite(FortniteTracker),
+  Cs2(Cs2Tracker),
+}
+
+impl Tracker {
+  fn new(game_id: &str, key: &str) -> Option<Self> {
+    match game_id {
+      archi_fortnite::GAME_ID => FortniteTracker::new(key).ok().map(Self::Fortnite),
+      archi_cs2::GAME_ID => Cs2Tracker::new(key).ok().map(Self::Cs2),
+      _ => None,
+    }
+  }
+}
+
+impl GameTracker for Tracker {
+  fn game_id(&self) -> &str {
+    match self {
+      Self::Fortnite(tracker) => tracker.game_id(),
+      Self::Cs2(tracker) => tracker.game_id(),
+    }
+  }
+
+  fn process_names(&self) -> &[&str] {
+    match self {
+      Self::Fortnite(tracker) => tracker.process_names(),
+      Self::Cs2(tracker) => tracker.process_names(),
+    }
+  }
+
+  async fn find_account(&self, name: &str) -> Result<AccountInfo, TrackError> {
+    match self {
+      Self::Fortnite(tracker) => tracker.find_account(name).await,
+      Self::Cs2(tracker) => tracker.find_account(name).await,
+    }
+  }
+
+  async fn fetch(&self, account_id: &str) -> Result<StatSnapshot, TrackError> {
+    match self {
+      Self::Fortnite(tracker) => tracker.fetch(account_id).await,
+      Self::Cs2(tracker) => tracker.fetch(account_id).await,
+    }
+  }
+}
+
+/// One game's live state in the worker.
+struct Slot<'a> {
+  game: &'static Game,
+  definition: &'a GameDefinition,
+  tracker: Option<Tracker>,
+  session: Option<Session<'a>>,
+  poller: Poller,
+  force_poll: bool,
+  status: Status,
 }
 
 pub struct Handle {
@@ -184,41 +267,47 @@ impl Events {
     }
   }
 
-  fn status(&self, status: &Status) {
-    self.send(Event::Status(status.clone()));
+  fn status(&self, game_id: &str, status: &Status) {
+    self.send(Event::Status(game_id.to_owned(), status.clone()));
   }
 }
 
 async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<Command>, events: &Events) {
-  let mut status = Status::default();
   let storage = match Storage::open(db_path) {
     Ok(storage) => storage,
     Err(_) => {
-      status.problem = Some(Problem::Storage);
-      return events.status(&status);
+      let status = Status { problem: Some(Problem::Storage), ..Status::default() };
+      for game in &GAMES {
+        events.status(game.id, &status);
+      }
+      return;
     }
   };
 
-  let mut tracker = match secrets::api_key(&storage) {
-    Ok(key) => key.and_then(|key| FortniteTracker::new(key).ok()),
-    Err(_) => {
-      status.problem = Some(Problem::Credentials);
-      None
-    }
-  };
-  status.has_api_key = tracker.is_some();
-  let mut session = match storage.account(GAME_ID) {
-    Ok(Some(account)) => start(&storage, catalog, &account.account_id, &mut status, events),
-    Ok(None) => None,
-    Err(_) => {
-      status.problem = Some(Problem::Storage);
-      None
-    }
-  };
-  events.status(&status);
+  let mut slots: Vec<Slot<'_>> = Vec::new();
+  for game in &GAMES {
+    let Some(definition) = catalog.get(game.id) else { continue };
+    let mut status = Status::default();
+    let tracker = match secrets::api_key(&storage, game.api_key) {
+      Ok(key) => key.and_then(|key| Tracker::new(game.id, &key)),
+      Err(_) => {
+        status.problem = Some(Problem::Credentials);
+        None
+      }
+    };
+    status.has_api_key = tracker.is_some();
+    let session = match storage.account(game.id) {
+      Ok(Some(account)) => start(&storage, catalog, definition, &account.account_id, &mut status, events),
+      Ok(None) => None,
+      Err(_) => {
+        status.problem = Some(Problem::Storage);
+        None
+      }
+    };
+    events.status(game.id, &status);
+    slots.push(Slot { game, definition, tracker, session, poller: Poller::new(PollPolicy::default()), force_poll: false, status });
+  }
 
-  let mut poller = Poller::new(PollPolicy::default());
-  let mut force_poll = false;
   let updater = Updater::new().ok();
   let install = Install::detect();
   let mut next_update_check = Instant::now() + UPDATE_FIRST_CHECK;
@@ -233,30 +322,35 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
       }
     }
 
-    // ADR 0001: the process list by name only, never a handle to the game.
-    let running = process::any_running(PROCESS_NAMES).unwrap_or(false);
-    if running != status.game_running {
-      status.game_running = running;
-      events.status(&status);
-      if !running {
-        next_replay_scan = Instant::now() + REPLAY_AFTER_EXIT;
+    for slot in &mut slots {
+      // ADR 0001: the process list by name only, never a handle to the game.
+      let running = process::any_running(slot.game.process_names).unwrap_or(false);
+      if running != slot.status.game_running {
+        slot.status.game_running = running;
+        events.status(slot.game.id, &slot.status);
+        if !running && slot.game.id == archi_fortnite::GAME_ID {
+          next_replay_scan = Instant::now() + REPLAY_AFTER_EXIT;
+        }
       }
     }
     // ADR 0001: replays only while the game is closed.
-    if !running
+    if let Some(slot) = fortnite(&mut slots)
+      && !slot.status.game_running
       && Instant::now() >= next_replay_scan
-      && let Some(session) = &mut session
+      && let Some(session) = &mut slot.session
     {
       next_replay_scan = Instant::now() + REPLAY_SCAN;
-      scan_replays(&storage, session, &mut status, events);
+      scan_replays(&storage, session, &mut slot.status, events);
     }
 
-    let due = poller.poll_due(running, Instant::now());
-    if (due || force_poll)
-      && let (Some(tracker), Some(session)) = (&tracker, &mut session)
-    {
-      force_poll = false;
-      poll(session, tracker, &mut poller, &mut status, events).await;
+    for slot in &mut slots {
+      let due = slot.poller.poll_due(slot.status.game_running, Instant::now());
+      if (due || slot.force_poll)
+        && let (Some(tracker), Some(session)) = (&slot.tracker, &mut slot.session)
+      {
+        slot.force_poll = false;
+        poll(session, tracker, &mut slot.poller, &mut slot.status, events).await;
+      }
     }
 
     let command = tokio::select! {
@@ -268,7 +362,7 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
     };
     match command {
       None => {}
-      Some(Command::PollNow) => force_poll = true,
+      Some(Command::PollNow) => slots.iter_mut().for_each(|slot| slot.force_poll = true),
       Some(Command::CheckUpdate { manual }) => match &updater {
         Some(updater) => check_update(updater, install, manual, &mut pending_update, events).await,
         None => events.send(Event::UpdateFailed(Problem::Update)),
@@ -278,68 +372,85 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
           install_update(updater, update, events).await;
         }
       }
-      // ADR 0001: files are only touched while the game is closed; the UI waits for it too.
-      Some(Command::DeleteReplays(files)) if !status.game_running => {
-        if let Some(dir) = replays::demos_dir() {
-          delete_replays(&storage, &dir, &files);
-        }
-        if let Some(session) = &session {
-          review_replays(&storage, session.account_id(), events);
+      Some(Command::DeleteReplays(files)) => {
+        // ADR 0001: files are only touched while the game is closed; the UI waits for it too.
+        if let Some(slot) = fortnite(&mut slots)
+          && !slot.status.game_running
+        {
+          if let Some(dir) = replays::demos_dir() {
+            delete_replays(&storage, &dir, &files);
+          }
+          if let Some(session) = &slot.session {
+            review_replays(&storage, session.account_id(), events);
+          }
         }
       }
-      Some(Command::DeleteReplays(_)) => {}
       Some(Command::KeepReplays(files)) => {
         for file in &files {
-          let _ = storage.mark_replay_reviewed(GAME_ID, &file.name, file.size);
+          let _ = storage.mark_replay_reviewed(archi_fortnite::GAME_ID, &file.name, file.size);
         }
-        if let Some(session) = &session {
+        if let Some(session) = fortnite(&mut slots).and_then(|slot| slot.session.as_ref()) {
           review_replays(&storage, session.account_id(), events);
         }
       }
       Some(Command::ScanReplays) => next_replay_scan = Instant::now(),
-      Some(Command::SetApiKey(key)) => {
+      Some(Command::SetApiKey { game, key }) => {
+        let Some(slot) = slots.iter_mut().find(|slot| slot.game.id == game) else { continue };
         let key = key.trim();
-        match secrets::set_api_key(key) {
+        match secrets::set_api_key(slot.game.api_key, key) {
           Ok(()) => {
-            tracker = FortniteTracker::new(key).ok();
-            status.has_api_key = tracker.is_some();
-            status.problem = None;
-            force_poll = true;
+            slot.tracker = Tracker::new(slot.game.id, key);
+            slot.status.has_api_key = slot.tracker.is_some();
+            slot.status.problem = None;
+            slot.force_poll = true;
           }
-          Err(_) => status.problem = Some(Problem::Credentials),
+          Err(_) => slot.status.problem = Some(Problem::Credentials),
         }
-        events.status(&status);
+        events.status(slot.game.id, &slot.status);
       }
-      Some(Command::Link(name)) => {
-        let Some(api) = &tracker else {
-          events.send(Event::LinkFailed(Problem::NoApiKey));
+      Some(Command::Link { game, name }) => {
+        let Some(slot) = slots.iter_mut().find(|slot| slot.game.id == game) else { continue };
+        let Some(api) = &slot.tracker else {
+          events.send(Event::LinkFailed(game, Problem::NoApiKey));
           continue;
         };
-        status.busy = true;
-        events.status(&status);
-        match link(&storage, api, name.trim()).await {
+        slot.status.busy = true;
+        events.status(slot.game.id, &slot.status);
+        match link(&storage, slot.game.id, api, name.trim()).await {
           Ok(account_id) => {
-            session = start(&storage, catalog, &account_id, &mut status, events);
-            force_poll = true; // The new account's baseline.
-            events.send(Event::Linked);
+            slot.session = start(&storage, catalog, slot.definition, &account_id, &mut slot.status, events);
+            slot.force_poll = true; // The new account's baseline.
+            events.send(Event::Linked(game));
           }
-          Err(problem) => events.send(Event::LinkFailed(problem)),
+          Err(problem) => events.send(Event::LinkFailed(game, problem)),
         }
-        status.busy = false;
-        events.status(&status);
+        slot.status.busy = false;
+        events.status(slot.game.id, &slot.status);
       }
     }
   }
 }
 
+/// Fortnite's slot: replays are Fortnite's only.
+fn fortnite<'s, 'a>(slots: &'s mut [Slot<'a>]) -> Option<&'s mut Slot<'a>> {
+  slots.iter_mut().find(|slot| slot.game.id == archi_fortnite::GAME_ID)
+}
+
 /// Replays the account's history and reports what it holds.
-fn start<'a>(storage: &'a Storage, catalog: &'a Catalog, account_id: &str, status: &mut Status, events: &Events) -> Option<Session<'a>> {
-  match Session::start(storage, &catalog.fortnite, &catalog.platform, &catalog.rules, account_id) {
+fn start<'a>(
+  storage: &'a Storage,
+  catalog: &'a Catalog,
+  definition: &'a GameDefinition,
+  account_id: &str,
+  status: &mut Status,
+  events: &Events,
+) -> Option<Session<'a>> {
+  match Session::start(storage, definition, catalog.games(), &catalog.platform, &catalog.rules, account_id) {
     Ok((session, retroactive)) => {
       if !retroactive.is_empty() {
         events.send(Event::Unlocked(retroactive));
       }
-      events.send(Event::Progress(session.progress().clone()));
+      events.send(Event::Progress(definition.game.id.clone(), session.progress().clone()));
       Some(session)
     }
     Err(_) => {
@@ -349,18 +460,17 @@ fn start<'a>(storage: &'a Storage, catalog: &'a Catalog, account_id: &str, statu
   }
 }
 
-async fn link(storage: &Storage, tracker: &FortniteTracker, name: &str) -> Result<String, Problem> {
-  use archi_core::GameTracker;
-
+async fn link(storage: &Storage, game_id: &str, tracker: &Tracker, name: &str) -> Result<String, Problem> {
   let account = tracker.find_account(name).await.map_err(|error| Problem::from(&error))?;
-  let linked = LinkedAccount { game_id: GAME_ID.into(), account_id: account.id, display_name: account.display_name, linked_at: unix_now() };
+  let linked = LinkedAccount { game_id: game_id.into(), account_id: account.id, display_name: account.display_name, linked_at: unix_now() };
   storage.link_account(&linked).map_err(|_| Problem::Storage)?;
   Ok(linked.account_id)
 }
 
-async fn poll(session: &mut Session<'_>, tracker: &FortniteTracker, poller: &mut Poller, status: &mut Status, events: &Events) {
+async fn poll(session: &mut Session<'_>, tracker: &Tracker, poller: &mut Poller, status: &mut Status, events: &Events) {
+  let game_id = session.game_id().to_owned();
   status.busy = true;
-  events.status(status);
+  events.status(&game_id, status);
   match session.poll(tracker).await {
     Ok(unlocks) => {
       status.problem = None;
@@ -368,7 +478,7 @@ async fn poll(session: &mut Session<'_>, tracker: &FortniteTracker, poller: &mut
       if !unlocks.is_empty() {
         events.send(Event::Unlocked(unlocks));
       }
-      events.send(Event::Progress(session.progress().clone()));
+      events.send(Event::Progress(game_id.clone(), session.progress().clone()));
     }
     Err(SessionError::Track(TrackError::RateLimited { retry_after })) => {
       poller.defer(Instant::now() + retry_after.unwrap_or(RATE_LIMIT_BACKOFF));
@@ -379,7 +489,7 @@ async fn poll(session: &mut Session<'_>, tracker: &FortniteTracker, poller: &mut
     Err(SessionError::Storage(_)) => status.problem = Some(Problem::Storage),
   }
   status.busy = false;
-  events.status(status);
+  events.status(&game_id, status);
 }
 
 async fn check_update(updater: &Updater, install: Install, manual: bool, pending: &mut Option<Update>, events: &Events) {
@@ -419,12 +529,12 @@ async fn install_update(updater: &Updater, update: &Update, events: &Events) {
 
 /// Reads the replays finished since the account was linked that weren't read yet.
 fn scan_replays(storage: &Storage, session: &mut Session<'_>, status: &mut Status, events: &Events) {
-  let since = storage.account(GAME_ID).ok().flatten().map_or(0, |account| account.linked_at);
+  let since = storage.account(archi_fortnite::GAME_ID).ok().flatten().map_or(0, |account| account.linked_at);
   // No folder yet means replays were never recorded: nothing to do.
   let found = replays::demos_dir().and_then(|dir| replays::finished(&dir, since, unix_now()).ok()).unwrap_or_default();
   let mut read_any = false;
   for candidate in found {
-    if storage.replay_seen(GAME_ID, &candidate.name, candidate.size).unwrap_or(true) {
+    if storage.replay_seen(archi_fortnite::GAME_ID, &candidate.name, candidate.size).unwrap_or(true) {
       continue;
     }
     match session.record_replay(replays::read(&candidate), unix_now()) {
@@ -441,12 +551,12 @@ fn scan_replays(storage: &Storage, session: &mut Session<'_>, status: &mut Statu
     }
   }
   if read_any {
-    events.send(Event::Progress(session.progress().clone()));
+    events.send(Event::Progress(archi_fortnite::GAME_ID.into(), session.progress().clone()));
   }
-  let count = storage.replay_count(GAME_ID, session.account_id()).unwrap_or(status.replays);
+  let count = storage.replay_count(archi_fortnite::GAME_ID, session.account_id()).unwrap_or(status.replays);
   if count != status.replays {
     status.replays = count;
-    events.status(status);
+    events.status(archi_fortnite::GAME_ID, status);
   }
   review_replays(storage, session.account_id(), events);
 }
@@ -456,12 +566,12 @@ fn scan_replays(storage: &Storage, session: &mut Session<'_>, status: &mut Statu
 fn review_replays(storage: &Storage, account_id: &str, events: &Events) {
   let Some(dir) = replays::demos_dir() else { return };
   let mut pending = Vec::new();
-  for (name, size) in storage.replays_to_review(GAME_ID, account_id).unwrap_or_default() {
+  for (name, size) in storage.replays_to_review(archi_fortnite::GAME_ID, account_id).unwrap_or_default() {
     if replays::present(&dir, &name, size) {
       pending.push(ReplayRef { name, size });
     } else {
       // Deleted by hand or by Fortnite itself: nothing left to ask about.
-      let _ = storage.mark_replay_reviewed(GAME_ID, &name, size);
+      let _ = storage.mark_replay_reviewed(archi_fortnite::GAME_ID, &name, size);
     }
   }
   if storage.setting(replays::AUTO_DELETE_SETTING).ok().flatten().as_deref() == Some("true") {
@@ -480,7 +590,7 @@ fn delete_replays(storage: &Storage, dir: &Path, files: &[ReplayRef]) {
     };
     // Otherwise (e.g. in use) it stays on the list and is retried.
     if gone {
-      let _ = storage.mark_replay_reviewed(GAME_ID, &file.name, file.size);
+      let _ = storage.mark_replay_reviewed(archi_fortnite::GAME_ID, &file.name, file.size);
     }
   }
 }
