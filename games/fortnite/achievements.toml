@@ -211,3 +211,137 @@ tier = "gold"
 hidden = true
 pack = "replays"
 condition = { type = "match", mode = "replay", all = [{ stat = "wins", eq = 1 }, { stat = "damage_taken", eq = 0 }] }
+
+# Más logros (2026-11-03). Repeticiones: derribos y distancia de cada eliminación salen de los
+# eventos playerElim; el daño a estructuras incluye objetos del mapa. Trayectoria (API): nivel
+# del pase de batalla de la temporada (condición "reach", el valor actual) y victorias por
+# dispositivo (modos input_*).
+
+[[achievement]]
+id = "knocks_100"
+name = "fortnite-knocks_100-name"
+description = "fortnite-knocks_100-desc"
+tier = "bronze"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "knocks", target = 100 }
+
+[[achievement]]
+id = "long_range_25"
+name = "fortnite-long_range_25-name"
+description = "fortnite-long_range_25-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "long_range_eliminations", target = 25 }
+
+[[achievement]]
+id = "long_shot"
+name = "fortnite-long_shot-name"
+description = "fortnite-long_shot-desc"
+tier = "gold"
+pack = "replays"
+condition = { type = "match", mode = "replay", all = [{ stat = "longest_elimination_m", gte = 200 }] }
+
+[[achievement]]
+id = "wrecking_ball"
+name = "fortnite-wrecking_ball-name"
+description = "fortnite-wrecking_ball-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "structure_damage", target = 50000 }
+
+[[achievement]]
+id = "pyro"
+name = "fortnite-pyro-name"
+description = "fortnite-pyro-desc"
+tier = "bronze"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "other_damage", target = 5000 }
+
+[[achievement]]
+id = "team_player"
+name = "fortnite-team_player-name"
+description = "fortnite-team_player-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "assists", target = 50 }
+
+[[achievement]]
+id = "explorer"
+name = "fortnite-explorer-name"
+description = "fortnite-explorer-desc"
+tier = "gold"
+pack = "replays"
+condition = { type = "match", mode = "replay", all = [{ stat = "distance_m", gte = 5000 }] }
+
+[[achievement]]
+id = "globetrotter"
+name = "fortnite-globetrotter-name"
+description = "fortnite-globetrotter-desc"
+tier = "gold"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "distance_m", target = 500000 }
+
+[[achievement]]
+id = "battle_pass_100"
+name = "fortnite-battle_pass_100-name"
+description = "fortnite-battle_pass_100-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "reach", mode = "battlepass", stat = "level", target = 100 }
+
+[[achievement]]
+id = "battle_pass_200"
+name = "fortnite-battle_pass_200-name"
+description = "fortnite-battle_pass_200-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "reach", mode = "battlepass", stat = "level", target = 200 }
+
+[[achievement]]
+id = "gamepad_win"
+name = "fortnite-gamepad_win-name"
+description = "fortnite-gamepad_win-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", mode = "input_gamepad", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "keyboard_win"
+name = "fortnite-keyboard_win-name"
+description = "fortnite-keyboard_win-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", mode = "input_keyboardmouse", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "touch_win"
+name = "fortnite-touch_win-name"
+description = "fortnite-touch_win-desc"
+tier = "bronze"
+hidden = true
+pack = "career"
+condition = { type = "total", mode = "input_touch", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "playtime_100h"
+name = "fortnite-playtime_100h-name"
+description = "fortnite-playtime_100h-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "total", stat = "minutes_played", target = 6000 }
+
+[[achievement]]
+id = "matches_1000"
+name = "fortnite-matches_1000-name"
+description = "fortnite-matches_1000-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "matches", target = 1000 }
+
+[[achievement]]
+id = "outlived_100000"
+name = "fortnite-outlived_100000-name"
+description = "fortnite-outlived_100000-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "players_outlived", target = 100000 }

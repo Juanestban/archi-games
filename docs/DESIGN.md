@@ -336,9 +336,14 @@ instalador MSI y, a medio plazo, ejecutable firmado.
   Los totales se suman también a cada lectura de la API, para que el modo no
   "baje" entre consultas. Así `total`, `match` y `streak` funcionan sin cambios.
   El archivo y su lectura se guardan en la misma transacción (tabla `replays`).
-- **Distancia:** el formato no documenta su unidad. Si una partida supera
-  50 000 se toma como centímetros (nadie recorre 50 km en una partida); se
-  confirmará con repeticiones reales.
+- **Distancia:** en centímetros, confirmado con 3 repeticiones reales del
+  usuario (2026-11-03): 195 039–325 760 en partidas de 10–16 minutos, es decir,
+  2–3 km. Se divide siempre entre 100. Esas mismas repeticiones validaron el
+  resto del lector (puesto, daño, precisión…). Fortnite las guarda como
+  `UnsavedReplay-<fecha>.replay` y deja abierta la de la partida en curso: por
+  eso solo se leen con el juego cerrado. En Cero construcción los materiales
+  quedan en 0, así que Leñador y Arquitecto solo avanzan en partidas con
+  construcción.
 - **Cuenta:** las repeticiones de este PC cuentan para la cuenta vinculada; si
   otra persona juega en el mismo PC con otra cuenta, sus partidas también
   sumarían.
@@ -372,32 +377,51 @@ forzoso (secreto: ser el primero en caer). Como paquete, no cuenta para el
 platino. Ojo: en `all`, cada `top*` viene de un único modo (`top10`/`top25` de
 solo, `top5`/`top12` de dúos, `top3`/`top6` de escuadrones).
 
-### Counter-Strike 2 (fase 2, decidido con el usuario, Q1–Q8)
+### Counter-Strike 2 (fase 2, decidido con el usuario)
 
-- **Fuente:** API web de Steam, `ISteamUserStats/GetUserStatsForGame/v2`
-  (appid 730, el de CS:GO). Cada jugador usa su propia clave gratuita de
-  steamcommunity.com/dev/apikey, guardada en el Administrador de credenciales
-  (`cs2.api_key`). Requiere el perfil y los "Detalles del juego" en Público.
-  Valve no documenta estos campos para CS2: los nombres vienen de CS:GO y se
-  validarán con la cuenta real del usuario (test `--ignored` de `archi-cs2`).
-- **Vincular:** URL del perfil (`/id/<nombre>` o `/profiles/<SteamID64>`), el
-  nombre personalizado o el SteamID64. Los nombres se resuelven con
-  `ResolveVanityURL`; el nombre visible y la visibilidad, con
-  `GetPlayerSummaries`. Vincular comprueba que las estadísticas se pueden leer.
-- **En el motor:** los contadores `total_*` van al modo `all` sin el prefijo
-  (`total_kills_ak47` → `kills_ak47`), `total_matches_played` es `matches` y
-  `last_match_*` va al modo `last_match` (para posibles logros por partida si
-  esos campos funcionan en CS2; decidir tras validar, Q7). `wins` son rondas
-  ganadas; las partidas ganadas son `matches_won`.
-- **Proceso:** `cs2.exe`, solo por nombre (ADR 0001), con la misma cadencia de
-  consultas que Fortnite.
+- **La API web de Steam no sirve:** `GetUserStatsForGame` (appid 730) da los
+  contadores de CS:GO, congelados desde que salió CS2. Comprobado con la cuenta
+  real del usuario el 2026-11-03: tras 2 partidas, Steam sumó 30 min de juego
+  pero partidas, bajas, rondas y `last_match_*` no cambiaron. Se descartó.
+- **Fuente: Game State Integration (GSI)**, el sistema oficial de Valve, elegido
+  por el usuario. Ajustes > Counter-Strike 2 > Activar escribe
+  `gamestate_integration_archigames.cfg` en
+  `<biblioteca>\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg`
+  (la biblioteca se busca en `libraryfolders.vdf` a partir de `SteamPath` del
+  registro). CS2 lo lee al arrancar y envía su estado a
+  `http://127.0.0.1:43117/cs2` con un token aleatorio de 128 bits guardado en
+  `cs2.gsi_token`. Desactivar borra el archivo y el token. Si al arrancar la app
+  el archivo falta y la integración estaba activa, se vuelve a escribir.
+  Desinstalar el MSI también borra el archivo. Excepción documentada en el ADR 0001.
+- **Servidor:** HTTP/1.1 mínimo sobre tokio, solo en loopback, con conexiones
+  persistentes, cuerpos de hasta 1 MB y respuesta 200 vacía. Se descarta lo que
+  no traiga el token.
+- **Cuenta:** no hay clave ni vinculación manual. Se vincula sola con el primer
+  dato del jugador local (`provider.steamid` y su nombre); si en el PC juega
+  otra cuenta de Steam, pasa a ser esa. Al vincular se guarda una lectura vacía
+  como base, para que la primera partida cuente entera.
+- **Qué cuenta:** partidas competitivas, Premier, casuales y de compañeros
+  (`scrimcomp2v2`) seguidas desde que empiezan (`live`) hasta `gameover`. Se
+  descartan el calentamiento, el deathmatch, el arms race, las partidas a las
+  que se entra con el mapa ya terminado y lo que se ve como espectador (cuando
+  `player.steamid` no es el local).
+- **Qué suma cada partida** (al modo `all`, como las repeticiones de Fortnite en
+  la tabla `replays`, con nombre `<mapa>-<timestamp>`): `matches`,
+  `matches_won` (comparando la puntuación de su equipo), `kills`, `deaths`,
+  `assists`, `mvps`, `score`, `kills_headshot` (de `round_killhs`), `aces`
+  (5 bajas en una ronda) y `kills_<arma>` (el arma en la mano cuando llega la
+  baja: `ak47`, `m4` para ambas M4, `awp`, `knife` para todos los cuchillos,
+  `taser`, `deagle`…). Las granadas y las bombas no se pueden atribuir al
+  jugador, así que no tienen logros.
+- **Limitación:** solo cuentan las partidas jugadas en este PC con Archi Games
+  abierto (en la bandeja vale).
 - **Logros base** (platino "Leyenda de Counter-Strike"): Primera victoria,
   Veterano (50 victorias), Mil bajas, Puntería fina (500 tiros a la cabeza), El
-  mejor de la partida (100 MVP), Experto en explosivos (50 bombas plantadas) y
-  Artificiero (25 desactivadas).
-- **Paquete `arsenal`:** Kalashnikov (500 con AK-47), Francotirador (250 con
-  AWP), A cuchillo (25), Zeus (10 con el táser, secreto), Granadero (50 con HE)
-  y Pirómano (50 con molotov o incendiaria).
+  mejor de la partida (100 MVP), As (5 bajas en una ronda) e Imparable (25 bajas
+  en una partida).
+- **Paquete `arsenal`:** Kalashnikov (500 con AK-47), Fusil reglamentario (500
+  con M4), Francotirador (250 con AWP), Mano firme (100 con Desert Eagle), A
+  cuchillo (25) y Zeus (10 con el táser, secreto).
 
 ### Varios juegos
 
@@ -411,11 +435,44 @@ solo, `top5`/`top12` de dúos, `top3`/`top6` de escuadrones).
   juegos (el nombre es el de la primera cuenta vinculada).
 - Los metalogros de la plataforma cuentan los desbloqueos de todos los juegos.
 
+### Más logros de Fortnite (2026-11-03, a petición del usuario)
+
+Se revisó todo lo que dan las repeticiones y la API:
+
+- **Repeticiones:** `AthenaMatchStats` mide exactamente 48 bytes en las
+  repeticiones reales (los 11 campos ya leídos; nada más). Además hay un evento
+  `playerElim` por cada derribo o eliminación de la partida (versión 10: un
+  byte, la posición de ambos jugadores en dobles, sus ids de Epic, la categoría
+  de arma y si fue derribo). De ahí salen `knocks`,
+  `long_range_eliminations` (a 100 m o más) y `longest_elimination_m` del
+  jugador. Validado con una partida real (2 derribos, el más lejano a 23 m).
+  La categoría de arma está en el evento pero falta averiguar qué número es
+  cada arma.
+- **No disponible:** cofres, saltos, distancia en vuelo, a pie o en vehículo y
+  objetos destruidos uno a uno no están en los eventos ni en la API; solo en
+  los datos de red de la repetición (ver Ideas futuras). Lo más cercano: el
+  daño a estructuras y objetos y la distancia total.
+- **API:** el nivel del pase de batalla de la temporada (modo `battlepass`,
+  `level`) y las estadísticas de cada dispositivo (`input_keyboardmouse`,
+  `input_gamepad`, `input_touch`).
+- **Condición nueva `reach`:** el valor actual, no lo sumado desde la
+  vinculación, para números que empiezan de cero cada temporada como el nivel
+  del pase.
+- **Logros añadidos:** en `replays`, Derribador (100 derribos), Tirador de
+  élite (25 a más de 100 m), Tiro lejano (a más de 200 m), Derribo controlado
+  (50 000 de daño a estructuras), Pirotécnico (5000 de daño sin armas), Compañero
+  ideal (50 asistencias), Explorador (5 km en una partida) y Trotamundos
+  (500 km). En `career`, Pase completado (nivel 100), Más allá del pase (200),
+  Con mando, Teclado y ratón, En la palma de la mano (secreto: táctil),
+  Residente de la isla (100 h), Incansable (1000 partidas) y Último en pie
+  (100 000 jugadores superados).
+
 ## Pendiente de investigar
 
 - Límites de peticiones de fortnite-api.com: no están documentados; se respeta `429`/`Retry-After`.
-- Unidad de la distancia de las repeticiones y números de arma de `playerElim`,
-  con repeticiones reales.
+- Qué arma es cada número de categoría de los eventos `playerElim`, para los
+  logros de Fortnite por tipo de arma (2, 3, 4, 5, 8, 10 y 50 vistos en una
+  partida; el 3 parece escopeta y el 5 subfusil, por la distancia).
 - **Descartado:** detectar cofres leyendo el teclado (cuánto se mantiene pulsada
   la tecla de interactuar). Es un hook global de teclado, prohibido por el
   ADR 0001 y típico de keyloggers. Además no es fiable: puertas, munición,

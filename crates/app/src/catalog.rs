@@ -42,6 +42,28 @@ mod tests {
   use super::*;
   use crate::i18n::{I18n, Language};
 
+  /// What Settings shows for a game polled through an API, and for one fed by the game (CS2).
+  const API_TEXTS: [&str; 9] =
+    ["name", "account", "account-hint", "api-key", "api-key-help", "closed-note", "error-private", "error-not-found", "error-network"];
+  const LOCAL_TEXTS: [&str; 16] = [
+    "name",
+    "integration",
+    "integration-help",
+    "integration-enable",
+    "integration-disable",
+    "integration-off",
+    "integration-waiting",
+    "integration-receiving",
+    "integration-account",
+    "running",
+    "closed",
+    "last-match",
+    "error-not-found",
+    "error-port",
+    "error-install",
+    "error-private",
+  ];
+
   /// Settings shows these for each game, so every game needs them in both languages.
   #[test]
   fn every_game_has_its_settings_texts() {
@@ -49,9 +71,8 @@ mod tests {
     for language in [Language::Es, Language::En] {
       let i18n = I18n::new(language);
       for game in catalog.games() {
-        for suffix in
-          ["name", "account", "account-hint", "api-key", "api-key-help", "closed-note", "error-private", "error-not-found", "error-network"]
-        {
+        let suffixes: &[&str] = if game.game.id == archi_cs2::GAME_ID { &LOCAL_TEXTS } else { &API_TEXTS };
+        for suffix in suffixes {
           let token = format!("{}-{suffix}", game.game.id);
           assert_ne!(i18n.tr(&token), token, "{token} missing in {language:?}");
         }

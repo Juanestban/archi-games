@@ -53,6 +53,7 @@ impl GameProgress {
       let Some(condition) = &achievement.condition else { continue };
       let met = match condition {
         Condition::Total { stat, mode, target } => snapshot.get(mode, stat).saturating_sub(baseline.get(mode, stat)) >= *target,
+        Condition::Reach { stat, mode, target } => snapshot.get(mode, stat) >= *target,
         Condition::Match { mode, all } => single_match(&delta, mode, all) == Some(true),
         Condition::Streak { mode, all, count } => {
           let streak = self.streaks.entry(achievement.id.clone()).or_default();
@@ -83,16 +84,17 @@ impl GameProgress {
     unlocked
   }
 
-  /// Progress bar for `total` achievements, capped at the target.
+  /// Progress bar for `total` and `reach` achievements, capped at the target.
   pub fn progress(&self, achievement: &AchievementDef) -> Option<Progress> {
-    let Some(Condition::Total { stat, mode, target }) = &achievement.condition else {
-      return None;
+    let (current, target) = match (&achievement.condition, &self.baseline, &self.last) {
+      (Some(Condition::Total { stat, mode, target }), Some(baseline), Some(last)) => {
+        (last.get(mode, stat).saturating_sub(baseline.get(mode, stat)), *target)
+      }
+      (Some(Condition::Reach { stat, mode, target }), _, Some(last)) => (last.get(mode, stat), *target),
+      (Some(Condition::Total { target, .. } | Condition::Reach { target, .. }), _, _) => (0, *target),
+      _ => return None,
     };
-    let current = match (&self.baseline, &self.last) {
-      (Some(baseline), Some(last)) => last.get(mode, stat).saturating_sub(baseline.get(mode, stat)),
-      _ => 0,
-    };
-    Some(Progress { current: current.min(*target), target: *target })
+    Some(Progress { current: current.min(target), target })
   }
 }
 

@@ -9,8 +9,30 @@ use archi_core::GameDefinition;
 const LOCALES: [&str; 2] = ["es", "en"];
 
 /// Per-game texts the app's Settings uses (checked by the app's own tests).
-const APP_TEXTS: [&str; 8] =
-  ["account", "account-hint", "api-key", "api-key-help", "closed-note", "error-private", "error-not-found", "error-network"];
+const APP_TEXTS: [&str; 22] = [
+  "account",
+  "account-hint",
+  "api-key",
+  "api-key-help",
+  "closed-note",
+  "error-private",
+  "error-not-found",
+  "error-network",
+  "error-port",
+  "error-install",
+  "integration",
+  "integration-help",
+  "integration-enable",
+  "integration-disable",
+  "integration-off",
+  "integration-waiting",
+  "integration-receiving",
+  "integration-account",
+  "running",
+  "closed",
+  "last-match",
+  "name",
+];
 
 /// Message ids defined in a Fluent file (top-level `id = ...` lines).
 fn fluent_ids(source: &str) -> BTreeSet<String> {

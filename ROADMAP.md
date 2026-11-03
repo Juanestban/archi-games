@@ -18,14 +18,14 @@ terminarla y actualiza **Estado actual**.
   usuario se actualizó desde la app.
 - **En curso:** fase 2. Hecho: lector de repeticiones, paquete "Repeticiones" con 7 logros,
   limpieza de la entrada de inicio con Windows al desinstalar, borrar repeticiones ya leídas
-  (preguntando o automático), paquete "career" con 10 logros más de la API y
-  Counter-Strike 2 (la app ya sigue varios juegos).
-  La API ya funciona con la cuenta real: 7 lecturas guardadas que siguen sus partidas.
-  Falta validar el lector con un `.replay` real del usuario (debe activar Grabar repeticiones).
-- **Siguiente:** validar CS2 con la clave y el perfil de Steam del usuario (test `--ignored` de
-  `archi-cs2`); con repeticiones reales, comprobar el lector y la unidad de la distancia y después
-  los logros de Fortnite por tipo de arma. Sigue pendiente el hito del paso 3 (un desbloqueo real
-  tras una partida).
+  (preguntando o automático), paquete "career" con 10 logros más de la API,
+  Counter-Strike 2 con Game State Integration (la app ya sigue varios juegos) y 16 logros
+  más de Fortnite (derribos, distancias, pase de batalla, dispositivos…).
+  La API ya funciona con la cuenta real (las lecturas siguen sus partidas) y el lector de
+  repeticiones está validado con 3 `.replay` reales (la distancia va en centímetros).
+- **Siguiente:** que el usuario active la integración de CS2, reinicie CS2 y juegue una
+  partida (debe registrarse al terminar); con eso, publicar la v0.5.0. Después, la tabla de
+  armas de Fortnite. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-03.
 
 ## Fase 1: versión inicial con Fortnite
@@ -111,13 +111,21 @@ terminarla y actualiza **Estado actual**.
 - [x] Preguntar si borrar cada repetición ya leída y opción de borrarlas automáticamente
   (Ajustes > Seguimiento), solo con Fortnite cerrado
 - [x] Paquete "career" con 10 logros de estadísticas de la API que el juego base no usaba
-- [ ] Validar el lector con repeticiones reales del usuario (y la unidad de la distancia)
-- [ ] Logros por tipo de arma (eventos `playerElim`): averiguar qué número es cada arma
+- [x] Validar el lector con repeticiones reales del usuario: 3 partidas leídas bien; la
+  distancia va en centímetros (antes se adivinaba la unidad)
+- [ ] Logros de Fortnite por tipo de arma: los eventos `playerElim` ya se leen; falta saber qué
+  número es cada arma
 - [x] Varios juegos a la vez: una ranura por juego en el tracker y Ajustes por juego
-- [x] Counter-Strike 2 con la API web de Steam: 7 logros base con platino y paquete "arsenal"
-  con 6 logros por arma
-- [ ] Validar CS2 con la cuenta real del usuario (nombres de los campos y si `last_match_*`
-  sirve para logros por partida)
+- [x] ~~CS2 con la API web de Steam~~: descartada, sus contadores están congelados desde CS:GO
+  (comprobado con la cuenta real del usuario)
+- [x] Counter-Strike 2 con Game State Integration: .cfg en la carpeta de CS2 al activarla,
+  servidor en 127.0.0.1:43117 con token, cuenta vinculada sola; 7 logros base con platino
+  (incluye As e Imparable) y paquete "arsenal" con 6 logros por arma
+- [ ] Probar CS2 de punta a punta con el usuario (activar, reiniciar CS2, jugar una partida)
+- [x] Fortnite: derribos y distancia de cada eliminación desde los eventos `playerElim` de las
+  repeticiones; nivel del pase de batalla y victorias por dispositivo desde la API
+- [x] Condición `reach` (valor actual) para lo que empieza de cero cada temporada
+- [x] 16 logros nuevos de Fortnite: 8 en "replays" y 8 en "career"
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
 - [ ] ~~Firmar el ejecutable y el MSI~~: aplazado por decisión del usuario (2026-11-03). Se publica

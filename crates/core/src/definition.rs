@@ -68,6 +68,14 @@ pub enum Condition {
     mode: String,
     all: Vec<Predicate>,
   },
+  /// The current value, not what was added since linking: for numbers that start over, like
+  /// a season's battle pass level.
+  Reach {
+    stat: String,
+    #[serde(default = "mode_all")]
+    mode: String,
+    target: u64,
+  },
   /// `count` consecutive matches in `mode` each satisfying `all`.
   Streak {
     #[serde(default = "mode_all")]
@@ -175,8 +183,8 @@ impl GameDefinition {
 fn validate_condition(id: &str, condition: &Condition) -> Result<(), DefinitionError> {
   let invalid = |reason| Err(DefinitionError::InvalidCondition(id.to_owned(), reason));
   let predicates = match condition {
-    Condition::Total { target: 0, .. } => return invalid("target must be greater than 0"),
-    Condition::Total { .. } => return Ok(()),
+    Condition::Total { target: 0, .. } | Condition::Reach { target: 0, .. } => return invalid("target must be greater than 0"),
+    Condition::Total { .. } | Condition::Reach { .. } => return Ok(()),
     Condition::Streak { count: 0, .. } => return invalid("count must be greater than 0"),
     Condition::Match { all, .. } | Condition::Streak { all, .. } => all,
   };

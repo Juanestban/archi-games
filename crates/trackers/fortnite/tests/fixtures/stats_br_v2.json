@@ -44,7 +44,13 @@
         }
       },
       "keyboardMouse": null,
-      "gamepad": null,
+      "gamepad": {
+        "overall": {
+          "score": 52100, "wins": 5, "top10": 22, "kills": 60, "deaths": 35, "kd": 1.714,
+          "matches": 40, "minutesPlayed": 480, "playersOutlived": 1900, "lastModified": "2026-10-30T18:02:11Z"
+        },
+        "solo": null, "duo": null, "trio": null, "squad": null, "ltm": null
+      },
       "touch": null
     }
   }

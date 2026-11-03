@@ -182,6 +182,14 @@ pub fn autostart_command() -> std::io::Result<String> {
   Ok(format!("\"{}\" {BACKGROUND_ARG}", std::env::current_exe()?.display()))
 }
 
+/// Steam's install folder (`HKCU\Software\Valve\Steam`, `SteamPath`), if Steam is installed.
+pub fn steam_path() -> Option<std::path::PathBuf> {
+  #[cfg(windows)]
+  return imp::read_value(r"Software\Valve\Steam", "SteamPath").ok().flatten().map(std::path::PathBuf::from);
+  #[cfg(not(windows))]
+  None
+}
+
 /// On uninstall: drops the `Run` entry, but only if it starts this copy (a portable copy
 /// may own it instead).
 pub fn forget_autostart() -> std::io::Result<()> {

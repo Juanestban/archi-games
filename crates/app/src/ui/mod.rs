@@ -30,7 +30,7 @@ use crate::replays;
 use crate::sound::{self, Sounds};
 use crate::tray::{self, ShellEvent, Tray};
 use crate::update;
-use crate::worker::{self, Command, Event, Problem, ReplayRef, Status, UpdateInfo};
+use crate::worker::{self, Command, Event, Integration, Problem, ReplayRef, Status, UpdateInfo};
 
 const SIDEBAR_WIDTH: f32 = 236.0;
 const HEADER_HEIGHT: f32 = 52.0;
@@ -383,7 +383,9 @@ impl ArchiApp {
     let (color, token) = match problem {
       Some(_) => (theme::BAD, "ui-status-problem"),
       None if busy => (theme::ACCENT_400, "ui-busy"),
-      None if !any(|game| game.status.has_api_key && game.account.is_some()) => (theme::FAINT, "ui-status-setup"),
+      None if !any(|game| game.account.is_some() && (game.status.has_api_key || game.status.integration != Integration::Off)) => {
+        (theme::FAINT, "ui-status-setup")
+      }
       None if any(|game| game.status.game_running) => (theme::GOOD, "ui-status-in-game"),
       None => (theme::GOOD, "ui-status-tracking"),
     };

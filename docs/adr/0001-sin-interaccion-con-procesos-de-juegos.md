@@ -29,6 +29,13 @@ Reglas obligatorias. Cualquier función nueva que las rompa se rechaza.
    cerró. Única escritura: borrar una repetición ya leída si el jugador lo
    pide (o activó el borrado automático), con el juego cerrado y solo ese
    archivo (mismo nombre y tamaño, dentro de la carpeta de repeticiones).
+   Otra excepción, para CS2: su *Game State Integration* oficial. Al pulsar
+   Activar en Ajustes, la app escribe un único archivo
+   (`gamestate_integration_archigames.cfg`) en la carpeta `cfg` de CS2 y lo
+   borra al desactivarla; el propio juego envía entonces sus datos por HTTP a
+   `127.0.0.1:43117`, donde la app escucha solo en la interfaz local y solo
+   acepta envíos con su token. Es el mecanismo que Valve ofrece para esto (lo
+   usan overlays y periféricos) y no toca el proceso.
 
 **Frente a los antivirus**
 

@@ -1,7 +1,9 @@
 # Logros de Counter-Strike 2. Los textos son tokens Fluent: ver locales/{es,en}.ftl.
-# Estadísticas de Steam (GetUserStatsForGame, appid 730) sin el prefijo "total_",
-# en el modo "all". "matches" = partidas jugadas; "wins" son rondas ganadas, así que
-# las victorias de partida son "matches_won".
+# Datos de Game State Integration (ver crates/trackers/cs2): cada partida competitiva,
+# Premier, casual o de compañeros jugada hasta el final suma al modo "all":
+# matches, matches_won, kills, deaths, assists, mvps, score, kills_headshot, aces y
+# kills_<arma> (ak47, m4, awp, knife, taser, deagle…; el arma en la mano cuando se
+# registra la baja).
 
 [game]
 id = "cs2"
@@ -43,18 +45,18 @@ tier = "silver"
 condition = { type = "total", stat = "mvps", target = 100 }
 
 [[achievement]]
-id = "bombs_planted_50"
-name = "cs2-bombs_planted_50-name"
-description = "cs2-bombs_planted_50-desc"
-tier = "bronze"
-condition = { type = "total", stat = "planted_bombs", target = 50 }
+id = "ace"
+name = "cs2-ace-name"
+description = "cs2-ace-desc"
+tier = "gold"
+condition = { type = "total", stat = "aces", target = 1 }
 
 [[achievement]]
-id = "bombs_defused_25"
-name = "cs2-bombs_defused_25-name"
-description = "cs2-bombs_defused_25-desc"
-tier = "silver"
-condition = { type = "total", stat = "defused_bombs", target = 25 }
+id = "match_kills_25"
+name = "cs2-match_kills_25-name"
+description = "cs2-match_kills_25-desc"
+tier = "gold"
+condition = { type = "match", all = [{ stat = "kills", gte = 25 }] }
 
 [[achievement]]
 id = "platinum"
@@ -73,12 +75,28 @@ pack = "arsenal"
 condition = { type = "total", stat = "kills_ak47", target = 500 }
 
 [[achievement]]
+id = "m4_500"
+name = "cs2-m4_500-name"
+description = "cs2-m4_500-desc"
+tier = "silver"
+pack = "arsenal"
+condition = { type = "total", stat = "kills_m4", target = 500 }
+
+[[achievement]]
 id = "awp_250"
 name = "cs2-awp_250-name"
 description = "cs2-awp_250-desc"
 tier = "silver"
 pack = "arsenal"
 condition = { type = "total", stat = "kills_awp", target = 250 }
+
+[[achievement]]
+id = "deagle_100"
+name = "cs2-deagle_100-name"
+description = "cs2-deagle_100-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", stat = "kills_deagle", target = 100 }
 
 [[achievement]]
 id = "knife_25"
@@ -96,19 +114,3 @@ tier = "gold"
 hidden = true
 pack = "arsenal"
 condition = { type = "total", stat = "kills_taser", target = 10 }
-
-[[achievement]]
-id = "he_50"
-name = "cs2-he_50-name"
-description = "cs2-he_50-desc"
-tier = "bronze"
-pack = "arsenal"
-condition = { type = "total", stat = "kills_hegrenade", target = 50 }
-
-[[achievement]]
-id = "molotov_50"
-name = "cs2-molotov_50-name"
-description = "cs2-molotov_50-desc"
-tier = "bronze"
-pack = "arsenal"
-condition = { type = "total", stat = "kills_molotov", target = 50 }

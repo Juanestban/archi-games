@@ -8,7 +8,8 @@ nivel de cuenta y metalogros de la plataforma. Rust nativo con egui.
 ## Reglas inquebrantables
 
 La app **nunca toca los procesos de los juegos**: no lee memoria, no inyecta
-código y no hookea nada. Los datos llegan de APIs públicas. Detalles en
+código y no hookea nada. Los datos llegan de APIs públicas, de las repeticiones
+de Fortnite y de lo que el propio CS2 envía con su integración oficial. Detalles en
 [ADR 0001](docs/adr/0001-sin-interaccion-con-procesos-de-juegos.md).
 
 ## Estructura
@@ -18,7 +19,7 @@ crates/core               motor de logros: definiciones, evaluación, XP, nivele
                           trait GameTracker y cuándo consultar (Poller)
 crates/storage            SQLite: lecturas, desbloqueos, cuentas y ajustes
 crates/trackers/fortnite  cliente de fortnite-api.com y lector de repeticiones
-crates/trackers/cs2       cliente de la API web de Steam (estadísticas de CS2)
+crates/trackers/cs2       Game State Integration de CS2: datos de la partida y el .cfg
 crates/app                la app: interfaz egui, textos (locales/) e hilo del tracker
 games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
@@ -50,6 +51,9 @@ condition = { type = "match", mode = "solo", all = [{ stat = "wins", eq = 1 }, {
 
 # N partidas seguidas que cumplen `all`
 condition = { type = "streak", all = [{ stat = "wins", eq = 1 }], count = 3 }
+
+# El valor actual, no lo sumado: para lo que empieza de cero cada temporada
+condition = { type = "reach", mode = "battlepass", stat = "level", target = 100 }
 ```
 
 `mode` es opcional (por defecto `all`, el total de todos los modos). Los
@@ -98,16 +102,16 @@ aparece en **Perfil** e **Historial**.
 
 - **Fortnite:** clave gratuita de [fortnite-api.com](https://dash.fortnite-api.com),
   tu nombre de Epic y, en Fortnite, *Mostrar en la clasificación de carrera*.
-- **Counter-Strike 2:** clave gratuita de la API web de Steam en
-  [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (como
-  dominio vale `localhost`), la URL de tu perfil de Steam o tu SteamID64 y, en
-  Steam, el perfil y los *Detalles del juego* en Público.
+- **Counter-Strike 2:** sin clave. En Ajustes > Counter-Strike 2 pulsa
+  **Activar**: se copia `gamestate_integration_archigames.cfg` en la carpeta
+  `cfg` de CS2 y la app escucha en `127.0.0.1:43117`. Abre (o reinicia) CS2 y
+  juega: la cuenta se vincula sola y cada partida cuenta al terminar.
 
-Para comprobar la API de Steam sin abrir la app:
+Para comprobar el lector de repeticiones con archivos reales (copias):
 
 ```
-$env:STEAM_API_KEY = "..."; $env:STEAM_PROFILE = "https://steamcommunity.com/id/..."
-cargo test -p archi-cs2 -- --ignored --nocapture
+$env:REPLAY_DIR = "..."; $env:ACCOUNT_ID = "<id de Epic>"
+cargo test -p archi-fortnite -- --ignored --nocapture
 ```
 
 En Windows, `.cargo/config.toml` obliga a compilar las dependencias en C

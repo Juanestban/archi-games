@@ -6,7 +6,7 @@ use super::{ArchiApp, theme, widgets};
 use crate::i18n::{Language, LanguageChoice};
 use crate::sound;
 use crate::update;
-use crate::worker::Command;
+use crate::worker::{Command, Integration};
 
 const LANGUAGES: [LanguageChoice; 3] = [LanguageChoice::System, LanguageChoice::Fixed(Language::Es), LanguageChoice::Fixed(Language::En)];
 
@@ -15,8 +15,12 @@ impl ArchiApp {
     ui.label(theme::heading(self.tr("ui-nav-settings"), 30.0));
     ui.add_space(16.0);
     self.game_picker(ui);
-    self.account_settings(ui);
-    self.api_key_settings(ui);
+    if self.settings_game == archi_cs2::GAME_ID {
+      self.integration_settings(ui);
+    } else {
+      self.account_settings(ui);
+      self.api_key_settings(ui);
+    }
     self.tracking_settings(ui);
     self.sound_settings(ui);
     self.system_settings(ui);
@@ -192,18 +196,55 @@ impl ArchiApp {
     }
   }
 
+  /// CS2: turning Game State Integration on or off, and what it's doing.
+  fn integration_settings(&mut self, ui: &mut Ui) {
+    let game_id = self.settings_game.clone();
+    let game = self.game(&game_id);
+    let integration = game.status.integration;
+    let account =
+      game.account.as_ref().map(|account| self.tr_args(&format!("{game_id}-integration-account"), &[("name", account.display_name.as_str().into())]));
+    let help = self.tr(&format!("{game_id}-integration-help"));
+    let (state, color) = match integration {
+      Integration::Off => (self.tr(&format!("{game_id}-integration-off")), theme::FAINT),
+      Integration::Waiting => (self.tr(&format!("{game_id}-integration-waiting")), theme::ACCENT_INK),
+      Integration::Receiving => (self.tr(&format!("{game_id}-integration-receiving")), theme::GOOD),
+    };
+    let (label, kind) = if integration == Integration::Off {
+      (self.tr(&format!("{game_id}-integration-enable")), widgets::Kind::Primary)
+    } else {
+      (self.tr(&format!("{game_id}-integration-disable")), widgets::Kind::Secondary)
+    };
+    let mut clicked = false;
+    block(ui, &self.tr(&format!("{game_id}-integration")), |ui| {
+      ui.label(theme::muted(help));
+      ui.add_space(4.0);
+      ui.label(RichText::new(state).color(color));
+      if let Some(account) = account {
+        ui.label(theme::heading(account, 16.0));
+      }
+      ui.add_space(4.0);
+      clicked = widgets::button(ui, &label, kind).clicked();
+    });
+    if clicked {
+      self.worker.send(Command::SetIntegration { game: game_id, enabled: integration == Integration::Off });
+    }
+  }
+
   fn tracking_settings(&mut self, ui: &mut Ui) {
     let game_id = self.settings_game.clone();
     let game = self.game(&game_id);
     let (status, linked) = (game.status.clone(), game.account.is_some());
+    // A game fed by the game itself (CS2) isn't polled.
+    let local = game_id == archi_cs2::GAME_ID;
     let name = self.catalog.get(&game_id).map(|definition| self.tr(&definition.game.name)).unwrap_or_default();
-    let running = if status.game_running {
-      self.tr_args("ui-game-running", &[("game", name.into())])
-    } else {
-      self.tr_args("ui-game-closed", &[("game", name.into()), ("note", self.tr(&format!("{game_id}-closed-note")).into())])
+    let running = match (local, status.game_running) {
+      (true, true) => self.tr(&format!("{game_id}-running")),
+      (true, false) => self.tr(&format!("{game_id}-closed")),
+      (false, true) => self.tr_args("ui-game-running", &[("game", name.into())]),
+      (false, false) => self.tr_args("ui-game-closed", &[("game", name.into()), ("note", self.tr(&format!("{game_id}-closed-note")).into())]),
     };
     let when = status.last_poll.map_or_else(|| self.tr("ui-never"), |at| self.when(at));
-    let last_poll = self.tr_args("ui-last-poll", &[("when", when.into())]);
+    let last_poll = self.tr_args(if local { "cs2-last-match" } else { "ui-last-poll" }, &[("when", when.into())]);
     let problem = status.problem.map(|problem| self.tr(&problem.token(&game_id)));
     // Replays are Fortnite's only.
     let replays = (game_id == archi_fortnite::GAME_ID).then(|| {
@@ -227,12 +268,14 @@ impl ArchiApp {
       if let Some(problem) = problem {
         ui.label(RichText::new(problem).color(theme::BAD));
       }
-      ui.add_space(4.0);
-      ui.add_enabled_ui(can_poll, |ui| {
-        if widgets::button(ui, &button, widgets::Kind::Secondary).clicked() {
-          self.worker.send(Command::PollNow);
-        }
-      });
+      if !local {
+        ui.add_space(4.0);
+        ui.add_enabled_ui(can_poll, |ui| {
+          if widgets::button(ui, &button, widgets::Kind::Secondary).clicked() {
+            self.worker.send(Command::PollNow);
+          }
+        });
+      }
       if replays.is_some() {
         ui.add_space(8.0);
         ui.horizontal(|ui| {

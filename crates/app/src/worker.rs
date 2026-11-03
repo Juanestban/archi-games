@@ -1,21 +1,29 @@
 //! The tracker thread: a tokio runtime that watches each game's process,
-//! polls its API when due and stores unlocks. It owns its own database
-//! connection; the UI talks to it through [`Command`]s and gets [`Event`]s
-//! back, each one waking the UI with `request_repaint`.
+//! polls its API when due (or, for CS2, listens on localhost for what the game
+//! sends) and stores unlocks. It owns its own database connection; the UI talks
+//! to it through [`Command`]s and gets [`Event`]s back, each one waking the UI
+//! with `request_repaint`.
 
+use std::hash::{BuildHasher, RandomState};
+use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use archi_core::{AccountInfo, GameDefinition, GameProgress, GameTracker, PollPolicy, Poller, StatSnapshot, TrackError};
-use archi_cs2::Cs2Tracker;
+use archi_cs2::gsi::{self, MatchTracker};
+use archi_cs2::{GSI_PORT, install as cs2_install};
 use archi_fortnite::FortniteTracker;
-use archi_storage::{LinkedAccount, Storage, Timestamp, Unlock, unix_now};
+use archi_storage::{LinkedAccount, ReplayFile, Storage, Timestamp, Unlock, unix_now};
 use eframe::egui;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio::task::JoinHandle;
 
 use crate::catalog::Catalog;
+use crate::desktop;
 use crate::process;
 use crate::replays;
 use crate::secrets;
@@ -32,6 +40,12 @@ const RATE_LIMIT_BACKOFF: Duration = Duration::from_secs(5 * 60);
 /// closes (the last replay is still being saved).
 const REPLAY_SCAN: Duration = Duration::from_secs(2 * 60);
 const REPLAY_AFTER_EXIT: Duration = Duration::from_secs(35);
+
+/// The token CS2 must send back with every update; set while the integration is on.
+const GSI_TOKEN_SETTING: &str = "cs2.gsi_token";
+
+/// Largest update accepted from CS2 (they're a few KB).
+const GSI_MAX_BODY: usize = 1 << 20;
 
 /// First automatic update check after start, then the interval between checks.
 const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(15);
@@ -59,6 +73,11 @@ pub enum Command {
   KeepReplays(Vec<ReplayRef>),
   /// Look for replays now, e.g. right after turning automatic deletion on.
   ScanReplays,
+  /// Turns a game's local integration (CS2's Game State Integration) on or off.
+  SetIntegration {
+    game: String,
+    enabled: bool,
+  },
 }
 
 /// A replay already read that the player hasn't kept or deleted yet.
@@ -104,6 +123,18 @@ pub struct Status {
   pub problem: Option<Problem>,
   /// Fortnite replays read for the linked account so far.
   pub replays: u32,
+  pub integration: Integration,
+}
+
+/// CS2's Game State Integration, as Settings shows it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Integration {
+  #[default]
+  Off,
+  /// The config file is in place and the app listens; nothing has come in yet.
+  Waiting,
+  /// CS2 is sending its state.
+  Receiving,
 }
 
 /// Something the user may need to act on, shown translated.
@@ -121,6 +152,10 @@ pub enum Problem {
   Update,
   /// The download didn't match the release's checksums; nothing was installed.
   UpdateIntegrity,
+  /// Another program uses the integration's local port.
+  PortInUse,
+  /// The integration's config file couldn't be written or removed.
+  Install,
 }
 
 impl Problem {
@@ -131,6 +166,8 @@ impl Problem {
       Self::Private => return format!("{game_id}-error-private"),
       Self::NotFound => return format!("{game_id}-error-not-found"),
       Self::Network => return format!("{game_id}-error-network"),
+      Self::PortInUse => return format!("{game_id}-error-port"),
+      Self::Install => return format!("{game_id}-error-install"),
       Self::NoApiKey => "ui-error-no-api-key",
       Self::Unauthorized => "ui-error-unauthorized",
       Self::RateLimited => "ui-error-rate-limited",
@@ -157,30 +194,28 @@ impl From<&TrackError> for Problem {
   }
 }
 
-/// A game the app can track: how to recognise it and how to reach its API.
+/// A game the app can track: how to recognise it and where its data comes from.
 struct Game {
   id: &'static str,
   process_names: &'static [&'static str],
-  /// The credential holding the player's API key.
-  api_key: &'static str,
+  /// The credential holding the player's API key; `None` for a game fed locally (CS2).
+  api_key: Option<&'static str>,
 }
 
 const GAMES: [Game; 2] = [
-  Game { id: archi_fortnite::GAME_ID, process_names: archi_fortnite::PROCESS_NAMES, api_key: archi_fortnite::API_KEY_SETTING },
-  Game { id: archi_cs2::GAME_ID, process_names: archi_cs2::PROCESS_NAMES, api_key: archi_cs2::API_KEY_SETTING },
+  Game { id: archi_fortnite::GAME_ID, process_names: archi_fortnite::PROCESS_NAMES, api_key: Some(archi_fortnite::API_KEY_SETTING) },
+  Game { id: archi_cs2::GAME_ID, process_names: archi_cs2::PROCESS_NAMES, api_key: None },
 ];
 
-/// `GameTracker` isn't object-safe (async methods), so the trackers are an enum.
+/// `GameTracker` isn't object-safe (async methods), so the API trackers are an enum.
 enum Tracker {
   Fortnite(FortniteTracker),
-  Cs2(Cs2Tracker),
 }
 
 impl Tracker {
   fn new(game_id: &str, key: &str) -> Option<Self> {
     match game_id {
       archi_fortnite::GAME_ID => FortniteTracker::new(key).ok().map(Self::Fortnite),
-      archi_cs2::GAME_ID => Cs2Tracker::new(key).ok().map(Self::Cs2),
       _ => None,
     }
   }
@@ -190,29 +225,38 @@ impl GameTracker for Tracker {
   fn game_id(&self) -> &str {
     match self {
       Self::Fortnite(tracker) => tracker.game_id(),
-      Self::Cs2(tracker) => tracker.game_id(),
     }
   }
 
   fn process_names(&self) -> &[&str] {
     match self {
       Self::Fortnite(tracker) => tracker.process_names(),
-      Self::Cs2(tracker) => tracker.process_names(),
     }
   }
 
   async fn find_account(&self, name: &str) -> Result<AccountInfo, TrackError> {
     match self {
       Self::Fortnite(tracker) => tracker.find_account(name).await,
-      Self::Cs2(tracker) => tracker.find_account(name).await,
     }
   }
 
   async fn fetch(&self, account_id: &str) -> Result<StatSnapshot, TrackError> {
     match self {
       Self::Fortnite(tracker) => tracker.fetch(account_id).await,
-      Self::Cs2(tracker) => tracker.fetch(account_id).await,
     }
+  }
+}
+
+/// The local server CS2 posts to while the integration is on.
+struct GsiServer {
+  token: String,
+  task: JoinHandle<()>,
+  matches: MatchTracker,
+}
+
+impl Drop for GsiServer {
+  fn drop(&mut self) {
+    self.task.abort();
   }
 }
 
@@ -288,12 +332,13 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
   for game in &GAMES {
     let Some(definition) = catalog.get(game.id) else { continue };
     let mut status = Status::default();
-    let tracker = match secrets::api_key(&storage, game.api_key) {
-      Ok(key) => key.and_then(|key| Tracker::new(game.id, &key)),
-      Err(_) => {
+    let tracker = match game.api_key.map(|name| secrets::api_key(&storage, name)) {
+      Some(Ok(key)) => key.and_then(|key| Tracker::new(game.id, &key)),
+      Some(Err(_)) => {
         status.problem = Some(Problem::Credentials);
         None
       }
+      None => None,
     };
     status.has_api_key = tracker.is_some();
     let session = match storage.account(game.id) {
@@ -306,6 +351,22 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
     };
     events.status(game.id, &status);
     slots.push(Slot { game, definition, tracker, session, poller: Poller::new(PollPolicy::default()), force_poll: false, status });
+  }
+
+  // CS2's integration, if the player turned it on: listen again (and put the file back if
+  // something removed it).
+  let (gsi_tx, mut gsi_rx) = unbounded_channel();
+  let mut gsi = None;
+  if let Some(token) = storage.setting(GSI_TOKEN_SETTING).ok().flatten()
+    && let Some(slot) = slots.iter_mut().find(|slot| slot.game.id == archi_cs2::GAME_ID)
+  {
+    if let Some(dir) = cs2_cfg_dir()
+      && !cs2_install::installed(&dir)
+    {
+      let _ = cs2_install::install(&dir, GSI_PORT, &token);
+    }
+    gsi = listen_gsi(token, &gsi_tx, &mut slot.status).await;
+    events.status(slot.game.id, &slot.status);
   }
 
   let updater = Updater::new().ok();
@@ -327,6 +388,9 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
       let running = process::any_running(slot.game.process_names).unwrap_or(false);
       if running != slot.status.game_running {
         slot.status.game_running = running;
+        if !running && slot.status.integration == Integration::Receiving {
+          slot.status.integration = Integration::Waiting;
+        }
         events.status(slot.game.id, &slot.status);
         if !running && slot.game.id == archi_fortnite::GAME_ID {
           next_replay_scan = Instant::now() + REPLAY_AFTER_EXIT;
@@ -359,6 +423,12 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
         Some(command) => Some(command),
         None => return, // The UI closed.
       },
+      Some(body) = gsi_rx.recv() => {
+        if let (Some(server), Some(slot)) = (&mut gsi, slots.iter_mut().find(|slot| slot.game.id == archi_cs2::GAME_ID)) {
+          on_gsi_update(&storage, catalog, slot, server, &body, events);
+        }
+        None
+      }
     };
     match command {
       None => {}
@@ -394,10 +464,41 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
         }
       }
       Some(Command::ScanReplays) => next_replay_scan = Instant::now(),
+      Some(Command::SetIntegration { game, enabled }) => {
+        let Some(slot) = slots.iter_mut().find(|slot| slot.game.id == game && game == archi_cs2::GAME_ID) else { continue };
+        slot.status.problem = None;
+        if enabled {
+          let token = storage.setting(GSI_TOKEN_SETTING).ok().flatten().unwrap_or_else(new_token);
+          match cs2_cfg_dir() {
+            None => slot.status.problem = Some(Problem::NotFound),
+            Some(dir) => match cs2_install::install(&dir, GSI_PORT, &token) {
+              Err(_) => slot.status.problem = Some(Problem::Install),
+              Ok(()) => {
+                if storage.set_setting(GSI_TOKEN_SETTING, &token).is_err() {
+                  slot.status.problem = Some(Problem::Storage);
+                }
+                if gsi.is_none() {
+                  gsi = listen_gsi(token, &gsi_tx, &mut slot.status).await;
+                }
+              }
+            },
+          }
+        } else {
+          gsi = None;
+          let removed = cs2_cfg_dir().map_or(Ok(()), |dir| cs2_install::uninstall(&dir));
+          let _ = storage.delete_setting(GSI_TOKEN_SETTING);
+          slot.status.integration = Integration::Off;
+          if removed.is_err() {
+            slot.status.problem = Some(Problem::Install);
+          }
+        }
+        events.status(slot.game.id, &slot.status);
+      }
       Some(Command::SetApiKey { game, key }) => {
         let Some(slot) = slots.iter_mut().find(|slot| slot.game.id == game) else { continue };
+        let Some(credential) = slot.game.api_key else { continue };
         let key = key.trim();
-        match secrets::set_api_key(slot.game.api_key, key) {
+        match secrets::set_api_key(credential, key) {
           Ok(()) => {
             slot.tracker = Tracker::new(slot.game.id, key);
             slot.status.has_api_key = slot.tracker.is_some();
@@ -537,7 +638,8 @@ fn scan_replays(storage: &Storage, session: &mut Session<'_>, status: &mut Statu
     if storage.replay_seen(archi_fortnite::GAME_ID, &candidate.name, candidate.size).unwrap_or(true) {
       continue;
     }
-    match session.record_replay(replays::read(&candidate), unix_now()) {
+    let file = replays::read(&candidate, session.account_id());
+    match session.record_replay(file, unix_now()) {
       Ok(unlocks) => {
         read_any = true;
         if !unlocks.is_empty() {
@@ -592,5 +694,158 @@ fn delete_replays(storage: &Storage, dir: &Path, files: &[ReplayRef]) {
     if gone {
       let _ = storage.mark_replay_reviewed(archi_fortnite::GAME_ID, &file.name, file.size);
     }
+  }
+}
+
+fn cs2_cfg_dir() -> Option<PathBuf> {
+  desktop::steam_path().and_then(|steam| cs2_install::cfg_dir(&steam))
+}
+
+/// 128 random bits as hex: `RandomState` is seeded from the OS for each instance.
+fn new_token() -> String {
+  (0..2).map(|_| format!("{:016x}", RandomState::new().hash_one(std::time::SystemTime::now()))).collect()
+}
+
+/// Binds the loopback port and serves CS2's posts in the background.
+async fn listen_gsi(token: String, tx: &UnboundedSender<Vec<u8>>, status: &mut Status) -> Option<GsiServer> {
+  match TcpListener::bind((Ipv4Addr::LOCALHOST, GSI_PORT)).await {
+    Ok(listener) => {
+      status.integration = Integration::Waiting;
+      let task = tokio::spawn(accept_gsi(listener, tx.clone()));
+      Some(GsiServer { token, task, matches: MatchTracker::default() })
+    }
+    Err(_) => {
+      status.integration = Integration::Off;
+      status.problem = Some(Problem::PortInUse);
+      None
+    }
+  }
+}
+
+async fn accept_gsi(listener: TcpListener, tx: UnboundedSender<Vec<u8>>) {
+  loop {
+    if let Ok((stream, _)) = listener.accept().await {
+      tokio::spawn(serve_gsi(stream, tx.clone()));
+    }
+  }
+}
+
+/// Minimal HTTP/1.1: each request's body goes to the worker; the reply is an empty 200.
+async fn serve_gsi(stream: TcpStream, tx: UnboundedSender<Vec<u8>>) {
+  let mut stream = BufReader::new(stream);
+  let mut line = String::new();
+  loop {
+    let mut length = None;
+    loop {
+      line.clear();
+      // Bounded, so a client can't grow a header line forever.
+      match (&mut stream).take(8 * 1024).read_line(&mut line).await {
+        Ok(0) | Err(_) => return,
+        Ok(_) => {}
+      }
+      let header = line.trim_end();
+      if header.is_empty() {
+        break;
+      }
+      if let Some((name, value)) = header.split_once(':')
+        && name.eq_ignore_ascii_case("content-length")
+      {
+        length = value.trim().parse::<usize>().ok();
+      }
+    }
+    let Some(length) = length.filter(|length| *length <= GSI_MAX_BODY) else { return };
+    let mut body = vec![0; length];
+    if stream.read_exact(&mut body).await.is_err() || tx.send(body).is_err() {
+      return;
+    }
+    if stream.get_mut().write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n").await.is_err() {
+      return;
+    }
+  }
+}
+
+/// One update from CS2: links the local player's account the first time and stores each
+/// match played to the end.
+fn on_gsi_update<'a>(storage: &'a Storage, catalog: &'a Catalog, slot: &mut Slot<'a>, server: &mut GsiServer, body: &[u8], events: &Events) {
+  let Some(payload) = gsi::parse(body) else { return };
+  if payload.token() != Some(server.token.as_str()) {
+    return;
+  }
+  if slot.status.integration != Integration::Receiving {
+    slot.status.integration = Integration::Receiving;
+    events.status(slot.game.id, &slot.status);
+  }
+  let now = unix_now();
+  // Whoever plays on this PC is the account: linked (or switched) on their first update.
+  if let (Some(provider), Some(player)) = (&payload.provider, payload.local_player())
+    && slot.session.as_ref().is_none_or(|session| session.account_id() != provider.steamid)
+  {
+    let account =
+      LinkedAccount { game_id: slot.game.id.into(), account_id: provider.steamid.clone(), display_name: player.name.clone(), linked_at: now };
+    if storage.link_account(&account).is_err() {
+      slot.status.problem = Some(Problem::Storage);
+      return events.status(slot.game.id, &slot.status);
+    }
+    slot.session = start(storage, catalog, slot.definition, &account.account_id, &mut slot.status, events);
+    if let Some(session) = &mut slot.session
+      && session.start_from_zero(now).is_err()
+    {
+      slot.status.problem = Some(Problem::Storage);
+    }
+    events.send(Event::Linked(slot.game.id.into()));
+  }
+  let Some(done) = server.matches.update(&payload) else { return };
+  let Some(session) = &mut slot.session else { return };
+  if storage.replay_seen(slot.game.id, &done.id, 0).unwrap_or(true) {
+    return;
+  }
+  match session.record_replay(ReplayFile { file_name: done.id, file_size: 0, stats: Some(done.stats) }, now) {
+    Ok(unlocks) => {
+      slot.status.last_poll = Some(now);
+      if !unlocks.is_empty() {
+        events.send(Event::Unlocked(unlocks));
+      }
+      events.send(Event::Progress(slot.game.id.into(), session.progress().clone()));
+    }
+    Err(_) => slot.status.problem = Some(Problem::Storage),
+  }
+  events.status(slot.game.id, &slot.status);
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  /// Two requests on one keep-alive connection, as CS2 sends them: both bodies arrive.
+  #[tokio::test]
+  async fn serves_gsi_posts_on_a_kept_alive_connection() {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let (tx, mut rx) = unbounded_channel();
+    let server = tokio::spawn(accept_gsi(listener, tx));
+
+    let mut client = TcpStream::connect(address).await.unwrap();
+    for body in [r#"{"a":1}"#, r#"{"b":22}"#] {
+      let request =
+        format!("POST /cs2 HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len());
+      client.write_all(request.as_bytes()).await.unwrap();
+      let mut reply = [0; 38];
+      client.read_exact(&mut reply).await.unwrap();
+      assert!(reply.starts_with(b"HTTP/1.1 200 OK"));
+      assert_eq!(rx.recv().await.unwrap(), body.as_bytes());
+    }
+    // A body over the limit closes the connection without being passed on.
+    let huge = format!("POST /cs2 HTTP/1.1\r\nContent-Length: {}\r\n\r\n", GSI_MAX_BODY + 1);
+    client.write_all(huge.as_bytes()).await.unwrap();
+    assert_eq!(client.read(&mut [0; 8]).await.unwrap(), 0);
+    assert!(rx.try_recv().is_err());
+    server.abort();
+  }
+
+  #[test]
+  fn tokens_are_random_and_long() {
+    let (a, b) = (new_token(), new_token());
+    assert_eq!(a.len(), 32);
+    assert_ne!(a, b);
   }
 }

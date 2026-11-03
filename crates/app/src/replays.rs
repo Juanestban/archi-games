@@ -49,12 +49,13 @@ pub fn finished(dir: &Path, since: Timestamp, now: Timestamp) -> io::Result<Vec<
   Ok(found)
 }
 
-/// What a file adds; an unreadable file adds nothing (and is still marked as read).
-pub fn read(candidate: &Candidate) -> ReplayFile {
+/// What a file adds for the player with `account_id`; an unreadable file adds nothing (and is
+/// still marked as read).
+pub fn read(candidate: &Candidate, account_id: &str) -> ReplayFile {
   let stats = std::fs::read(&candidate.path)
     .ok()
     .and_then(|bytes| replay::parse(&bytes).ok())
-    .and_then(|summary| summary.stats())
+    .and_then(|summary| summary.stats(account_id))
     .map(|stats| stats.into_iter().map(|(stat, value)| (stat.to_owned(), value)).collect::<BTreeMap<_, _>>());
   ReplayFile { file_name: candidate.name.clone(), file_size: candidate.size, stats }
 }
@@ -101,7 +102,7 @@ mod tests {
     assert!(finished(&dir, now + 10, now + 60).unwrap().is_empty(), "older than the link");
 
     // Not a real replay: read as nothing to add, not an error.
-    assert_eq!(read(&later[0]).stats, None);
+    assert_eq!(read(&later[0], "acc").stats, None);
     std::fs::remove_dir_all(&dir).unwrap();
   }
 

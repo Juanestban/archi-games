@@ -1,12 +1,13 @@
 //! A linked account's live session: rebuilds progress from history at
 //! startup, then turns each poll and each local match file into stored unlocks.
 //!
-//! Local match files (replays) add to the `replay` mode. Those totals are merged into every
-//! API poll too, so the mode never reads as a drop between two polls.
+//! Local matches (Fortnite's replay files, CS2's Game State Integration) add to a mode of
+//! their own: `replay` for Fortnite, whose totals are merged into every API poll too so the
+//! mode never reads as a drop between two polls; `all` for CS2, which has no API.
 
 use std::collections::BTreeMap;
 
-use archi_core::{GameDefinition, GameProgress, GameTracker, Progression, StatSnapshot, TrackError};
+use archi_core::{GameDefinition, GameProgress, GameTracker, MODE_ALL, Progression, StatSnapshot, TrackError};
 use archi_fortnite::replay::REPLAY_MODE;
 use archi_storage::{ReplayFile, Storage, StorageError, Timestamp, Unlock, unix_now};
 use thiserror::Error;
@@ -28,8 +29,10 @@ pub struct Session<'a> {
   rules: &'a Progression,
   account_id: String,
   progress: GameProgress,
-  /// Every read replay's stats, summed.
+  /// Every local match's stats, summed.
   replay_totals: BTreeMap<String, u64>,
+  /// The mode local matches add to.
+  local_mode: &'static str,
 }
 
 impl<'a> Session<'a> {
@@ -46,7 +49,9 @@ impl<'a> Session<'a> {
     let (progress, mut unlocks) = storage.rebuild_progress(game, account_id)?;
     unlocks.extend(storage.evaluate_platform(platform, &games, rules, unix_now())?);
     let replay_totals = storage.replay_totals(&game.game.id, account_id)?;
-    Ok((Self { storage, game, games, platform, rules, account_id: account_id.to_owned(), progress, replay_totals }, unlocks))
+    let local_mode = if game.game.id == archi_cs2::GAME_ID { MODE_ALL } else { REPLAY_MODE };
+    let account_id = account_id.to_owned();
+    Ok((Self { storage, game, games, platform, rules, account_id, progress, replay_totals, local_mode }, unlocks))
   }
 
   pub fn account_id(&self) -> &str {
@@ -57,11 +62,20 @@ impl<'a> Session<'a> {
     &self.game.game.id
   }
 
-  fn with_replays(totals: &BTreeMap<String, u64>, mut snapshot: StatSnapshot) -> StatSnapshot {
+  fn with_replays(&self, totals: &BTreeMap<String, u64>, mut snapshot: StatSnapshot) -> StatSnapshot {
     for (stat, &value) in totals {
-      snapshot.set(REPLAY_MODE, stat, value);
+      snapshot.set(self.local_mode, stat, value);
     }
     snapshot
+  }
+
+  /// For a game without an API (CS2): an empty first reading, so the first match counts in
+  /// full instead of becoming the baseline.
+  pub fn start_from_zero(&mut self, at: Timestamp) -> Result<(), StorageError> {
+    if self.progress.last.is_none() {
+      self.record(StatSnapshot::new(), at)?;
+    }
+    Ok(())
   }
 
   /// Adds a local match file: a new snapshot (the last API stats plus the new replay totals)
@@ -76,7 +90,7 @@ impl<'a> Session<'a> {
     for (stat, value) in stats {
       *totals.entry(stat.clone()).or_insert(0) += value;
     }
-    let snapshot = Self::with_replays(&totals, self.progress.last.clone().unwrap_or_default());
+    let snapshot = self.with_replays(&totals, self.progress.last.clone().unwrap_or_default());
     let mut unlocks = self.storage.ingest_replay(self.game, &self.account_id, &mut self.progress, snapshot, &file, at)?;
     self.replay_totals = totals;
     if !unlocks.is_empty() {
@@ -100,7 +114,7 @@ impl<'a> Session<'a> {
   }
 
   pub async fn poll(&mut self, tracker: &impl GameTracker) -> Result<Vec<Unlock>, SessionError> {
-    let snapshot = Self::with_replays(&self.replay_totals, tracker.fetch(&self.account_id).await?);
+    let snapshot = self.with_replays(&self.replay_totals, tracker.fetch(&self.account_id).await?);
     Ok(self.record(snapshot, unix_now())?)
   }
 }
@@ -167,6 +181,29 @@ mod tests {
   fn replay(name: &str, damage: u64, damage_taken: u64, won: bool) -> ReplayFile {
     let stats = [("matches", 1), ("wins", u64::from(won)), ("damage", damage), ("damage_taken", damage_taken), ("accuracy", 20), ("eliminations", 1)];
     ReplayFile { file_name: name.into(), file_size: 10, stats: Some(stats.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()) }
+  }
+
+  /// CS2 has no API: a zero baseline, then each match adds to `all`.
+  #[test]
+  fn local_matches_count_in_full_for_a_game_without_an_api() {
+    let cs2 = GameDefinition::from_toml_str(include_str!("../../../games/cs2/achievements.toml")).unwrap();
+    let (_, platform) = definitions();
+    let rules = Progression::default();
+    let storage = Storage::open_in_memory().unwrap();
+    let (mut session, _) = Session::start(&storage, &cs2, vec![&cs2], &platform, &rules, "steam").unwrap();
+    session.start_from_zero(1).unwrap();
+    session.start_from_zero(1).unwrap();
+
+    let a_match = |id: &str, kills: u64, won: u64| ReplayFile {
+      file_name: id.into(),
+      file_size: 0,
+      stats: Some([("matches", 1), ("matches_won", won), ("kills", kills), ("aces", 1)].into_iter().map(|(k, v)| (k.to_owned(), v)).collect()),
+    };
+    let unlocked = session.record_replay(a_match("de_dust2-1", 26, 1), 2).unwrap();
+    assert_eq!(ids(&unlocked), ["first_win", "ace", "match_kills_25"]);
+    assert!(session.record_replay(a_match("de_mirage-2", 3, 0), 3).unwrap().is_empty());
+    assert_eq!(session.progress().last.as_ref().unwrap().get(MODE_ALL, "kills"), 29);
+    assert_eq!(storage.snapshots("cs2", "steam").unwrap().len(), 3, "the zero baseline is stored once");
   }
 
   #[tokio::test]

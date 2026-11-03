@@ -205,6 +205,35 @@ fn platform_meta_achievements_start_from_zero() {
 }
 
 #[test]
+fn reach_reads_the_current_value_even_after_it_starts_over() {
+  let game = GameDefinition::from_toml_str(
+    r#"
+        [game]
+        id = "g"
+        name = "g-name"
+
+        [[achievement]]
+        id = "level_100"
+        name = "a"
+        description = "b"
+        tier = "silver"
+        condition = { type = "reach", mode = "battlepass", stat = "level", target = 100 }
+        "#,
+  )
+  .unwrap();
+  let level = |n| StatSnapshot::new().with("battlepass", "level", n);
+  let achievement = game.get("level_100").unwrap();
+
+  let mut progress = GameProgress::default();
+  assert!(progress.apply(&game, level(90)).is_empty(), "the baseline");
+  // A new season starts the level over: progress follows the current value, not a delta.
+  assert!(progress.apply(&game, level(3)).is_empty());
+  assert_eq!(progress.progress(achievement).unwrap().current, 3);
+  assert_eq!(ids(progress.apply(&game, level(104))), ["level_100"]);
+  assert_eq!(progress.progress(achievement).unwrap().current, 100);
+}
+
+#[test]
 fn unlocked_tiers_add_up_to_account_level() {
   let game = game();
   let mut account = Account::default();

@@ -13,9 +13,17 @@ struct Envelope {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct StatsData {
   account: Account,
+  battle_pass: Option<BattlePass>,
   stats: Inputs,
+}
+
+/// This season's pass: it starts over every season.
+#[derive(Deserialize)]
+struct BattlePass {
+  level: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -24,11 +32,15 @@ struct Account {
   name: String,
 }
 
-/// Stats split by input device. Only `all` is used: it's the whole account,
-/// console matches included.
+/// Stats split by input device. `all` is the whole account, console matches included; each
+/// device's overall stats go to an `input_*` mode of their own.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Inputs {
   all: Option<Modes>,
+  keyboard_mouse: Option<Modes>,
+  gamepad: Option<Modes>,
+  touch: Option<Modes>,
 }
 
 /// A mode is `null` until the account plays it. The API never fills `trio`.
@@ -82,8 +94,13 @@ impl ModeStats {
   }
 }
 
+/// Mode holding the battle pass level (`level`); see [`parse_stats`].
+pub const MODE_BATTLE_PASS: &str = "battlepass";
+
 /// Turns an HTTP response into the account and its snapshot. `overall`
-/// becomes mode [`MODE_ALL`]; other modes keep their API names.
+/// becomes mode [`MODE_ALL`]; other modes keep their API names; each input
+/// device's overall stats become `input_keyboardmouse`, `input_gamepad` or
+/// `input_touch`; the battle pass level is `level` in [`MODE_BATTLE_PASS`].
 pub(crate) fn parse_stats(status: u16, retry_after: Option<Duration>, body: &[u8]) -> Result<(AccountInfo, StatSnapshot), TrackError> {
   let envelope = serde_json::from_slice::<Envelope>(body);
   let message = envelope.as_ref().ok().and_then(|e| e.error.clone()).unwrap_or_default();
@@ -112,13 +129,24 @@ pub(crate) fn parse_stats(status: u16, retry_after: Option<Duration>, body: &[u8
     ("squad", modes.squad.as_ref()),
     ("ltm", modes.ltm.as_ref()),
   ];
+  fn overall_of(input: &Option<Modes>) -> Option<&ModeStats> {
+    input.as_ref().and_then(|modes| modes.overall.as_ref())
+  }
+  let by_input = [
+    ("input_keyboardmouse", overall_of(&data.stats.keyboard_mouse)),
+    ("input_gamepad", overall_of(&data.stats.gamepad)),
+    ("input_touch", overall_of(&data.stats.touch)),
+  ];
   let mut snapshot = StatSnapshot::new();
-  for (mode, stats) in by_mode {
+  for (mode, stats) in by_mode.into_iter().chain(by_input) {
     for (stat, value) in stats.into_iter().flat_map(ModeStats::counters) {
       if let Some(value) = value {
         snapshot.set(mode, stat, value);
       }
     }
+  }
+  if let Some(level) = data.battle_pass.and_then(|pass| pass.level) {
+    snapshot.set(MODE_BATTLE_PASS, "level", level);
   }
 
   Ok((AccountInfo { id: data.account.id, display_name: data.account.name }, snapshot))
@@ -145,6 +173,10 @@ mod tests {
     assert_eq!(snapshot.get("solo", "kills"), 2104);
     assert_eq!(snapshot.get("squad", "top6"), 260);
     assert_eq!(snapshot.get("ltm", "wins"), 30);
+    assert_eq!(snapshot.get(MODE_BATTLE_PASS, "level"), 87);
+    assert_eq!(snapshot.get("input_gamepad", "wins"), 5);
+    assert_eq!(snapshot.get("input_gamepad", MATCHES), 40);
+    assert_eq!(snapshot.get("input_keyboardmouse", "wins"), 0, "null input: nothing");
   }
 
   #[test]

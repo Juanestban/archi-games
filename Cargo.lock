@@ -283,11 +283,8 @@ dependencies = [
 name = "archi-cs2"
 version = "0.5.0"
 dependencies = [
- "archi-core",
- "reqwest",
  "serde",
  "serde_json",
- "tokio",
 ]
 
 [[package]]

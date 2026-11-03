@@ -37,8 +37,12 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
-  // Run by the MSI while uninstalling: no window, and a running copy doesn't matter.
+  // Run by the MSI while uninstalling: no window, and a running copy doesn't matter. Also
+  // takes CS2's integration file out of the game's folder.
   if std::env::args().any(|arg| arg == desktop::UNINSTALL_ARG) {
+    if let Some(dir) = desktop::steam_path().and_then(|steam| archi_cs2::install::cfg_dir(&steam)) {
+      let _ = archi_cs2::install::uninstall(&dir);
+    }
     return Ok(desktop::forget_autostart()?);
   }
   // A second launch (e.g. the Start menu while it sits in the tray) shows the
