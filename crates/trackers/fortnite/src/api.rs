@@ -56,7 +56,7 @@ struct Modes {
 
 /// Counters only; ratios like `kd` or `winRate` are left out. Each mode
 /// reports a different set of `top*` placements.
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ModeStats {
   score: Option<u64>,
@@ -101,6 +101,10 @@ pub const MODE_BATTLE_PASS: &str = "battlepass";
 /// becomes mode [`MODE_ALL`]; other modes keep their API names; each input
 /// device's overall stats become `input_keyboardmouse`, `input_gamepad` or
 /// `input_touch`; the battle pass level is `level` in [`MODE_BATTLE_PASS`].
+///
+/// Every counter of every mode is recorded, as 0 when the API has nothing (a mode
+/// never played): the engine then knows a stat missing from an old snapshot was
+/// just not read yet, not zero (see `GameMeta::local_modes`).
 pub(crate) fn parse_stats(status: u16, retry_after: Option<Duration>, body: &[u8]) -> Result<(AccountInfo, StatSnapshot), TrackError> {
   let envelope = serde_json::from_slice::<Envelope>(body);
   let message = envelope.as_ref().ok().and_then(|e| e.error.clone()).unwrap_or_default();
@@ -137,12 +141,11 @@ pub(crate) fn parse_stats(status: u16, retry_after: Option<Duration>, body: &[u8
     ("input_gamepad", overall_of(&data.stats.gamepad)),
     ("input_touch", overall_of(&data.stats.touch)),
   ];
+  let none = ModeStats::default();
   let mut snapshot = StatSnapshot::new();
   for (mode, stats) in by_mode.into_iter().chain(by_input) {
-    for (stat, value) in stats.into_iter().flat_map(ModeStats::counters) {
-      if let Some(value) = value {
-        snapshot.set(mode, stat, value);
-      }
+    for (stat, value) in stats.unwrap_or(&none).counters() {
+      snapshot.set(mode, stat, value.unwrap_or(0));
     }
   }
   if let Some(level) = data.battle_pass.and_then(|pass| pass.level) {
@@ -180,12 +183,12 @@ mod tests {
   }
 
   #[test]
-  fn null_modes_and_ratios_are_skipped() {
+  fn null_modes_read_as_zero_and_ratios_are_skipped() {
     let (_, snapshot) = parse_stats(200, None, RESPONSE).unwrap();
-    let json = serde_json::to_value(&snapshot).unwrap();
-    let modes = json["modes"].as_object().unwrap();
-    assert!(!modes.contains_key("trio"));
-    assert!(!modes["all"].as_object().unwrap().contains_key("kd"));
+    assert!(snapshot.contains("trio", "wins") && snapshot.get("trio", "wins") == 0);
+    assert!(snapshot.contains("input_touch", MATCHES));
+    assert!(snapshot.contains("solo", "top3"), "every counter, even one the mode doesn't report");
+    assert!(!snapshot.contains(MODE_ALL, "kd"));
   }
 
   #[test]

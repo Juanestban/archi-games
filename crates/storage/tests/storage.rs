@@ -176,6 +176,7 @@ fn platform_meta_achievements_cascade() {
         [game]
         id = "{PLATFORM_ID}"
         name = "platform-name"
+        local_modes = ["all"]
 
         [[achievement]]
         id = "first_unlock"

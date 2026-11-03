@@ -56,7 +56,11 @@ condition = { type = "streak", all = [{ stat = "wins", eq = 1 }], count = 3 }
 condition = { type = "reach", mode = "battlepass", stat = "level", target = 100 }
 ```
 
-`mode` es opcional (por defecto `all`, el total de todos los modos). Los
+`mode` es opcional (por defecto `all`, el total de todos los modos). En
+`[game]`, `local_modes` lista los modos que la app suma ella misma a partir de
+partidas locales (repeticiones, Game State Integration): empiezan en 0. En los
+demás, una estadística que aparece después de la vinculación (porque una versión
+nueva la lee) cuenta desde ese momento. Los
 comparadores son `eq`, `gte` y `lte`. Otros campos: `tier`
 (bronze/silver/gold/platinum), `hidden` y `pack`, para expansiones que no
 cuentan para el platino. El platino no lleva condición: se desbloquea al

@@ -4,6 +4,8 @@
 [game]
 id = "fortnite"
 name = "fortnite-name"
+# Lo que suman las repeticiones empieza en 0; el resto (la API) cuenta desde que aparece.
+local_modes = ["replay"]
 
 [[achievement]]
 id = "first_win"
@@ -345,3 +347,87 @@ description = "fortnite-outlived_100000-desc"
 tier = "gold"
 pack = "career"
 condition = { type = "total", stat = "players_outlived", target = 100000 }
+
+# Por arma (repeticiones): eliminaciones del jugador según la causa de muerte de cada evento
+# playerElim (ver weapon_group en crates/trackers/fortnite/src/replay.rs). Los derribos no cuentan.
+
+[[achievement]]
+id = "pistol_50"
+name = "fortnite-pistol_50-name"
+description = "fortnite-pistol_50-desc"
+tier = "bronze"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_pistol", target = 50 }
+
+[[achievement]]
+id = "shotgun_100"
+name = "fortnite-shotgun_100-name"
+description = "fortnite-shotgun_100-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_shotgun", target = 100 }
+
+[[achievement]]
+id = "rifle_100"
+name = "fortnite-rifle_100-name"
+description = "fortnite-rifle_100-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_rifle", target = 100 }
+
+[[achievement]]
+id = "smg_100"
+name = "fortnite-smg_100-name"
+description = "fortnite-smg_100-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_smg", target = 100 }
+
+[[achievement]]
+id = "sniper_25"
+name = "fortnite-sniper_25-name"
+description = "fortnite-sniper_25-desc"
+tier = "gold"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_sniper", target = 25 }
+
+[[achievement]]
+id = "explosive_25"
+name = "fortnite-explosive_25-name"
+description = "fortnite-explosive_25-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_explosive", target = 25 }
+
+[[achievement]]
+id = "heavy_25"
+name = "fortnite-heavy_25-name"
+description = "fortnite-heavy_25-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_heavy", target = 25 }
+
+[[achievement]]
+id = "bow_10"
+name = "fortnite-bow_10-name"
+description = "fortnite-bow_10-desc"
+tier = "silver"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_bow", target = 10 }
+
+[[achievement]]
+id = "melee_10"
+name = "fortnite-melee_10-name"
+description = "fortnite-melee_10-desc"
+tier = "gold"
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_melee", target = 10 }
+
+[[achievement]]
+id = "vehicle_5"
+name = "fortnite-vehicle_5-name"
+description = "fortnite-vehicle_5-desc"
+tier = "gold"
+hidden = true
+pack = "replays"
+condition = { type = "total", mode = "replay", stat = "eliminations_vehicle", target = 5 }

@@ -183,6 +183,20 @@ mod tests {
     ReplayFile { file_name: name.into(), file_size: 10, stats: Some(stats.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()) }
   }
 
+  /// Rebuilds a real database (a copy) and lists what its history unlocks:
+  /// `ARCHI_DB_COPY=<copy> cargo test -p archi-games rebuilds_a_real_history -- --ignored --nocapture`.
+  #[test]
+  #[ignore = "needs a copy of a real database"]
+  fn rebuilds_a_real_history() {
+    let storage = Storage::open(std::path::Path::new(&std::env::var("ARCHI_DB_COPY").unwrap())).unwrap();
+    let catalog = crate::catalog::Catalog::bundled().unwrap();
+    for game in catalog.games() {
+      let Some(account) = storage.account(&game.game.id).unwrap() else { continue };
+      let (session, unlocks) = Session::start(&storage, game, catalog.games(), &catalog.platform, &catalog.rules, &account.account_id).unwrap();
+      println!("{}: retroactive {:?}, unlocked {:?}", game.game.id, ids(&unlocks), session.progress().unlocked);
+    }
+  }
+
   /// CS2 has no API: a zero baseline, then each match adds to `all`.
   #[test]
   fn local_matches_count_in_full_for_a_game_without_an_api() {

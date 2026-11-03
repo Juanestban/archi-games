@@ -4,6 +4,8 @@
 [game]
 id = "platform"
 name = "platform-name"
+# Las cuentas de la plataforma se calculan desde 0.
+local_modes = ["all"]
 
 [[achievement]]
 id = "first_platinum"

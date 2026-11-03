@@ -466,6 +466,28 @@ Se revisó todo lo que dan las repeticiones y la API:
 - **Condición nueva `reach`:** el valor actual, no lo sumado desde la
   vinculación, para números que empiezan de cero cada temporada como el nivel
   del pase.
+- **Estadísticas que aparecen después de la base** (error encontrado con el
+  usuario: Con mando, Teclado y ratón y En la palma de la mano se desbloquearon
+  a la vez porque su lectura base no tenía las estadísticas por dispositivo, que
+  contaron como 0 y sumaron todas sus victorias de siempre). Regla: una
+  estadística que la base nunca registró empieza a contar cuando aparece, salvo
+  en los `local_modes` del juego (`replay` en Fortnite, `all` en CS2 y en la
+  plataforma), que la app suma desde 0. Para no confundir "aún no se leía" con
+  "vale 0", la lectura de la API de Fortnite registra siempre todos los
+  contadores de todos los modos y dispositivos, con 0 si la API no da nada.
+- **Logros por arma (repeticiones):** la causa de muerte de cada `playerElim`
+  es la enumeración `EDeathCause` de Fortnite (lista de fortnite-replay-parser,
+  MIT). Comprobado con una partida real: la mediana de distancia es 0,9 m con el
+  pico (8), 4,3 m con escopetas (3), 6–7 m con subfusiles (5) y fusiles (4), y el
+  cierre de la partida es `Unspecified` (50). Grupos: pistola (2), escopeta (3),
+  fusil (4), subfusil (5), francotirador (6, 7), cuerpo a cuerpo (8, 20),
+  explosivos (10–13, 30), pesadas (14, 29), arco (15) y vehículos (23–28). Solo
+  cuentan las eliminaciones del jugador (no los derribos, para no contar dos
+  veces a quien se derriba y luego se remata). La pistola (2) es la menos
+  segura: casi nunca trae la posición de quien elimina. Logros en `replays`:
+  Pistolero (50), Rey de la escopeta (100), Fusilero (100), Ráfaga (100),
+  Francotirador (25), Dinamitero (25), Artillería pesada (25), Arquero (10),
+  A golpe de pico (10) y Atropello (5, secreto).
 - **Logros añadidos:** en `replays`, Derribador (100 derribos), Tirador de
   élite (25 a más de 100 m), Tiro lejano (a más de 200 m), Derribo controlado
   (50 000 de daño a estructuras), Pirotécnico (5000 de daño sin armas), Compañero
@@ -478,9 +500,8 @@ Se revisó todo lo que dan las repeticiones y la API:
 ## Pendiente de investigar
 
 - Límites de peticiones de fortnite-api.com: no están documentados; se respeta `429`/`Retry-After`.
-- Qué arma es cada número de categoría de los eventos `playerElim`, para los
-  logros de Fortnite por tipo de arma (2, 3, 4, 5, 8, 10 y 50 vistos en una
-  partida; el 3 parece escopeta y el 5 subfusil, por la distancia).
+- Confirmar con más repeticiones que la causa 2 es pistola (las demás
+  encajan por distancia).
 - **Descartado:** detectar cofres leyendo el teclado (cuánto se mantiene pulsada
   la tecla de interactuar). Es un hook global de teclado, prohibido por el
   ADR 0001 y típico de keyloggers. Además no es fiable: puertas, munición,

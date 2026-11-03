@@ -44,10 +44,23 @@ description = "b"
 tier = "platinum"
 "#;
 
-/// Cumulative account stats, advanced one match at a time.
-#[derive(Clone, Default)]
+/// Cumulative account stats, advanced one match at a time. Like a real tracker, it reports
+/// every stat it knows, 0 included.
+#[derive(Clone)]
 struct Account {
   snapshot: StatSnapshot,
+}
+
+impl Default for Account {
+  fn default() -> Self {
+    let mut snapshot = StatSnapshot::new();
+    for mode in [MODE_ALL, "solo", "duo", "squad"] {
+      for stat in [MATCHES, "wins", "kills"] {
+        snapshot.set(mode, stat, 0);
+      }
+    }
+    Self { snapshot }
+  }
 }
 
 impl Account {
@@ -188,6 +201,7 @@ fn platform_meta_achievements_start_from_zero() {
         [game]
         id = "platform"
         name = "platform-name"
+        local_modes = ["all"]
 
         [[achievement]]
         id = "first_platinum"
@@ -202,6 +216,45 @@ fn platform_meta_achievements_start_from_zero() {
   let mut progress = GameProgress::with_baseline(StatSnapshot::new());
   let unlocked = progress.apply(&game, StatSnapshot::new().with(MODE_ALL, "platinums", 1));
   assert_eq!(ids(unlocked), ["first_platinum"]);
+}
+
+/// A newer tracker reads stats the baseline never had: they're lifetime totals, not progress.
+/// In a local mode, though, a stat seen for the first time is new progress.
+#[test]
+fn stats_first_seen_after_the_baseline_count_from_then_except_in_local_modes() {
+  let game = GameDefinition::from_toml_str(
+    r#"
+        [game]
+        id = "g"
+        name = "g-name"
+        local_modes = ["replay"]
+
+        [[achievement]]
+        id = "gamepad_win"
+        name = "a"
+        description = "b"
+        tier = "bronze"
+        condition = { type = "total", mode = "input_gamepad", stat = "wins", target = 1 }
+
+        [[achievement]]
+        id = "first_taser"
+        name = "a"
+        description = "b"
+        tier = "bronze"
+        condition = { type = "total", mode = "replay", stat = "kills_taser", target = 1 }
+        "#,
+  )
+  .unwrap();
+  let mut progress = GameProgress::default();
+  progress.apply(&game, StatSnapshot::new().with(MODE_ALL, "wins", 50));
+  // 30 lifetime gamepad wins show up: none of them is new.
+  let lifetime = StatSnapshot::new().with(MODE_ALL, "wins", 50).with("input_gamepad", "wins", 30);
+  assert!(progress.apply(&game, lifetime.clone()).is_empty());
+  assert_eq!(progress.progress(game.get("gamepad_win").unwrap()).unwrap().current, 0);
+  assert_eq!(ids(progress.apply(&game, lifetime.clone().with(MODE_ALL, "wins", 51).with("input_gamepad", "wins", 31))), ["gamepad_win"]);
+  // The first taser kill from a replay counts.
+  let with_replay = lifetime.with(MODE_ALL, "wins", 51).with("input_gamepad", "wins", 31).with("replay", "kills_taser", 1);
+  assert_eq!(ids(progress.apply(&game, with_replay)), ["first_taser"]);
 }
 
 #[test]

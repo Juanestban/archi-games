@@ -29,6 +29,11 @@ pub struct GameMeta {
   pub id: String,
   /// Fluent token.
   pub name: String,
+  /// Modes the app adds up itself from local matches (replays, Game State Integration):
+  /// their stats start at zero, so one recorded for the first time counts in full. In every
+  /// other mode a stat first seen after the baseline counts from when it's first seen.
+  #[serde(default)]
+  pub local_modes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

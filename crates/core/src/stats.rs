@@ -35,6 +35,16 @@ impl StatSnapshot {
     self.modes.get(mode).and_then(|stats| stats.get(stat)).copied().unwrap_or(0)
   }
 
+  /// Whether the stat was recorded at all, even as 0.
+  pub fn contains(&self, mode: &str, stat: &str) -> bool {
+    self.modes.get(mode).is_some_and(|stats| stats.contains_key(stat))
+  }
+
+  /// Every recorded `(mode, stat, value)`.
+  pub fn entries(&self) -> impl Iterator<Item = (&str, &str, u64)> {
+    self.modes.iter().flat_map(|(mode, stats)| stats.iter().map(move |(stat, &value)| (mode.as_str(), stat.as_str(), value)))
+  }
+
   /// What happened between `previous` and `self`. Stats that went down
   /// (e.g. an upstream reset) count as 0 instead of underflowing.
   pub fn delta(&self, previous: &StatSnapshot) -> StatSnapshot {

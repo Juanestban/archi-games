@@ -31,6 +31,39 @@ const ELIMINATION_VERSION: u32 = 10;
 /// An elimination this far away (metres) counts as a long-range one.
 pub const LONG_RANGE_M: f64 = 100.0;
 
+/// The weapon group of an elimination's death cause (the game's `EDeathCause`, as listed by
+/// the MIT fortnite-replay-parser; checked against real replays: shotguns and pickaxes are the
+/// closest, the end of the match is `Unspecified`). `None` for causes that aren't weapons.
+pub fn weapon_group(cause: u8) -> Option<&'static str> {
+  Some(match cause {
+    2 => "pistol",
+    3 => "shotgun",
+    4 => "rifle",
+    5 => "smg",
+    6 | 7 => "sniper",
+    8 | 20 => "melee",
+    10..=13 | 30 => "explosive",
+    14 | 29 => "heavy",
+    15 => "bow",
+    23..=28 => "vehicle",
+    _ => return None,
+  })
+}
+
+/// Every weapon group and the stat its eliminations go to (recorded 0 included).
+const WEAPON_STATS: [(&str, &str); 10] = [
+  ("pistol", "eliminations_pistol"),
+  ("shotgun", "eliminations_shotgun"),
+  ("rifle", "eliminations_rifle"),
+  ("smg", "eliminations_smg"),
+  ("sniper", "eliminations_sniper"),
+  ("melee", "eliminations_melee"),
+  ("explosive", "eliminations_explosive"),
+  ("heavy", "eliminations_heavy"),
+  ("bow", "eliminations_bow"),
+  ("vehicle", "eliminations_vehicle"),
+];
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ReplayError {
   #[error("not a replay file")]
@@ -77,7 +110,7 @@ pub struct Elimination {
   pub eliminator: Option<String>,
   /// A knock (down but not out) rather than an elimination.
   pub knocked: bool,
-  /// The game's weapon category number; its meaning isn't mapped yet.
+  /// The death cause: the weapon category (see [`weapon_group`]), the storm, a fall…
   pub gun: u8,
   /// Between both players; `None` when the game didn't record a position.
   pub distance_m: Option<f64>,
@@ -96,10 +129,12 @@ impl MatchSummary {
     let knocks = mine.iter().filter(|e| e.knocked).count() as u64;
     let long_range = distances.iter().filter(|&&d| d >= LONG_RANGE_M).count() as u64;
     let longest = distances.iter().copied().fold(0.0, f64::max) as u64;
+    // Eliminations only: a knock and its finish would count one player twice.
+    let by_weapon = |group: &str| mine.iter().filter(|e| !e.knocked && weapon_group(e.gun) == Some(group)).count() as u64;
     // Centimetres, as confirmed with real replays (a 16-minute match: 325 760).
     let meters = s.total_traveled / 100;
     let won = self.placement == Some(1);
-    Some(BTreeMap::from([
+    let mut stats = BTreeMap::from([
       (MATCHES, 1),
       ("wins", u64::from(won)),
       ("eliminations", s.eliminations.into()),
@@ -118,7 +153,9 @@ impl MatchSummary {
       ("long_range_eliminations", long_range),
       // Summed like the rest, so a one-match delta is that match's longest.
       ("longest_elimination_m", longest),
-    ]))
+    ]);
+    stats.extend(WEAPON_STATS.map(|(group, stat)| (stat, by_weapon(group))));
+    Some(stats)
   }
 }
 
@@ -464,12 +501,25 @@ mod tests {
     assert_eq!(stats["knocks"], 1);
     assert_eq!(stats["long_range_eliminations"], 1);
     assert_eq!(stats["longest_elimination_m"], 120);
+    // Both eliminations (not the knock) were with a shotgun (cause 3).
+    assert_eq!(stats["eliminations_shotgun"], 2);
+    assert_eq!(stats["eliminations_smg"], 0);
+    assert!(WEAPON_STATS.iter().all(|(_, stat)| stats.contains_key(stat)), "every group, 0 included");
     // Another layout version: skipped, the match still counts.
     let mut other_version = elimination(None, Some(ME), [1.0; 3], [2.0; 3], true);
     other_version[0] = 11;
     let mut bytes = replay(false, 1, 3);
     bytes.extend(event_in(ELIMINATION_GROUP, "versionedEvent", &other_version));
     assert_eq!(parse(&bytes).unwrap().stats(ME).unwrap()["knocks"], 0);
+  }
+
+  #[test]
+  fn death_causes_group_into_weapons() {
+    assert_eq!(weapon_group(3), Some("shotgun"));
+    assert_eq!(weapon_group(7), Some("sniper"));
+    assert_eq!(weapon_group(8), Some("melee"));
+    assert_eq!(weapon_group(13), Some("explosive"));
+    assert_eq!((weapon_group(0), weapon_group(1), weapon_group(50)), (None, None, None), "storm, fall, unspecified");
   }
 
   #[test]

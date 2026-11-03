@@ -40,11 +40,20 @@ impl GameProgress {
   /// Applies a new snapshot and returns the achievements it unlocked, in
   /// definition order with the platinum always last.
   pub fn apply<'d>(&mut self, definition: &'d GameDefinition, snapshot: StatSnapshot) -> Vec<&'d AchievementDef> {
-    let (Some(baseline), Some(previous)) = (&self.baseline, &self.last) else {
+    let (Some(baseline), Some(previous)) = (&mut self.baseline, &mut self.last) else {
       self.baseline = Some(snapshot.clone());
       self.last = Some(snapshot);
       return Vec::new();
     };
+    // A stat the baseline never recorded (a newer tracker reads more than the one that took
+    // it) is a lifetime total, not progress: it starts counting now.
+    for (mode, stat, value) in snapshot.entries() {
+      if !definition.game.local_modes.iter().any(|local| local == mode) && !baseline.contains(mode, stat) {
+        baseline.set(mode, stat, value);
+        previous.set(mode, stat, value);
+      }
+    }
+    let (baseline, previous) = (&*baseline, &*previous);
 
     let delta = snapshot.delta(previous);
     let mut unlocked = Vec::new();

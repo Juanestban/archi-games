@@ -8,6 +8,8 @@
 [game]
 id = "cs2"
 name = "cs2-name"
+# Todo sale de las partidas registradas por la app: empieza en 0.
+local_modes = ["all"]
 
 [[achievement]]
 id = "first_win"

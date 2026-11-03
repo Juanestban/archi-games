@@ -23,8 +23,9 @@ terminarla y actualiza **Estado actual**.
   más de Fortnite (derribos, distancias, pase de batalla, dispositivos…).
   La API ya funciona con la cuenta real (las lecturas siguen sus partidas) y el lector de
   repeticiones está validado con 3 `.replay` reales (la distancia va en centímetros).
-- **Siguiente:** publicar la v0.5.0 (el usuario ya comprobó CS2 de punta a punta). Después, la tabla de
-  armas de Fortnite. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
+- **Siguiente:** publicar la v0.5.0 (el usuario ya comprobó CS2 de punta a punta). Antes,
+  borrar de su base de datos los 3 desbloqueos erróneos de dispositivo (con su permiso). Sigue
+  pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-03.
 
 ## Fase 1: versión inicial con Fortnite
@@ -112,8 +113,10 @@ terminarla y actualiza **Estado actual**.
 - [x] Paquete "career" con 10 logros de estadísticas de la API que el juego base no usaba
 - [x] Validar el lector con repeticiones reales del usuario: 3 partidas leídas bien; la
   distancia va en centímetros (antes se adivinaba la unidad)
-- [ ] Logros de Fortnite por tipo de arma: los eventos `playerElim` ya se leen; falta saber qué
-  número es cada arma
+- [x] Logros de Fortnite por tipo de arma: causa de muerte de `playerElim` (`EDeathCause`),
+  comprobada por distancias con una partida real; 10 logros en "replays"
+- [x] Corregido: estadísticas que aparecen después de la base (p. ej. victorias por dispositivo)
+  ya no cuentan toda la vida del jugador; `local_modes` para lo que la app suma desde 0
 - [x] Varios juegos a la vez: una ranura por juego en el tracker y Ajustes por juego
 - [x] ~~CS2 con la API web de Steam~~: descartada, sus contadores están congelados desde CS:GO
   (comprobado con la cuenta real del usuario)
