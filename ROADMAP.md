@@ -23,8 +23,8 @@ terminarla y actualiza **Estado actual**.
   más de Fortnite (derribos, distancias, pase de batalla, dispositivos…).
   La API ya funciona con la cuenta real (las lecturas siguen sus partidas) y el lector de
   repeticiones está validado con 3 `.replay` reales (la distancia va en centímetros).
-- **Siguiente:** publicar la v0.5.0 (el usuario ya comprobó CS2 de punta a punta). Antes,
-  borrar de su base de datos los 3 desbloqueos erróneos de dispositivo (con su permiso). Sigue
+- **Siguiente:** publicar la v0.5.1 (el usuario ya comprobó CS2 de punta a punta; los 3
+  desbloqueos erróneos de dispositivo ya se borraron de su base de datos). Sigue
   pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-03.
 
