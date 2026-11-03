@@ -272,7 +272,7 @@ dependencies = [
 
 [[package]]
 name = "archi-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "archi-fortnite"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aes 0.8.4",
  "archi-core",
@@ -293,7 +293,7 @@ dependencies = [
 
 [[package]]
 name = "archi-games"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "archi-core",
  "archi-fortnite",
@@ -317,7 +317,7 @@ dependencies = [
 
 [[package]]
 name = "archi-storage"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "archi-core",
  "directories",
