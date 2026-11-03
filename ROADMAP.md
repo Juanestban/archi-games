@@ -23,8 +23,7 @@ terminarla y actualiza **Estado actual**.
   más de Fortnite (derribos, distancias, pase de batalla, dispositivos…).
   La API ya funciona con la cuenta real (las lecturas siguen sus partidas) y el lector de
   repeticiones está validado con 3 `.replay` reales (la distancia va en centímetros).
-- **Siguiente:** que el usuario active la integración de CS2, reinicie CS2 y juegue una
-  partida (debe registrarse al terminar); con eso, publicar la v0.5.0. Después, la tabla de
+- **Siguiente:** publicar la v0.5.0 (el usuario ya comprobó CS2 de punta a punta). Después, la tabla de
   armas de Fortnite. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-03.
 
@@ -121,11 +120,14 @@ terminarla y actualiza **Estado actual**.
 - [x] Counter-Strike 2 con Game State Integration: .cfg en la carpeta de CS2 al activarla,
   servidor en 127.0.0.1:43117 con token, cuenta vinculada sola; 7 logros base con platino
   (incluye As e Imparable) y paquete "arsenal" con 6 logros por arma
-- [ ] Probar CS2 de punta a punta con el usuario (activar, reiniciar CS2, jugar una partida)
+- [x] Probar CS2 de punta a punta con el usuario: funciona (2026-11-03)
 - [x] Fortnite: derribos y distancia de cada eliminación desde los eventos `playerElim` de las
   repeticiones; nivel del pase de batalla y victorias por dispositivo desde la API
 - [x] Condición `reach` (valor actual) para lo que empieza de cero cada temporada
 - [x] 16 logros nuevos de Fortnite: 8 en "replays" y 8 en "career"
+- [x] Rendimiento de Logros sin paginar: solo se maquetan las filas visibles (54 → 1,9 ms por
+  fotograma en `cargo run`, 3,2 → 1,15 ms en release) y dependencias optimizadas en depuración
+- [x] Búsqueda de logros por texto, sin distinguir mayúsculas ni tildes
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
 - [ ] ~~Firmar el ejecutable y el MSI~~: aplazado por decisión del usuario (2026-11-03). Se publica

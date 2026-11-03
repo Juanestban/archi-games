@@ -13,7 +13,7 @@ mod settings;
 mod theme;
 mod widgets;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, LazyLock, mpsc};
 use std::time::Duration;
 
@@ -120,6 +120,12 @@ pub struct ArchiApp {
   shown_game: String,
   state_filter: StateFilter,
   tier_filter: Option<Tier>,
+  /// Text search over the shown names and descriptions.
+  achievement_query: String,
+  /// Each row's height the last time it was laid out, at `row_width`: rows out of view only
+  /// reserve that space instead of being laid out again (see `achievements_screen`).
+  row_heights: HashMap<String, f32>,
+  row_width: f32,
 
   // Settings screen: the game whose account and key are shown.
   settings_game: String,
@@ -179,6 +185,9 @@ impl ArchiApp {
       shown_game: archi_fortnite::GAME_ID.into(),
       state_filter: StateFilter::All,
       tier_filter: None,
+      achievement_query: String::new(),
+      row_heights: HashMap::new(),
+      row_width: 0.0,
       settings_game: archi_fortnite::GAME_ID.into(),
       notifier: notify::Notifier::default(),
       sounds: Sounds::new(),
@@ -246,6 +255,8 @@ impl ArchiApp {
 
   /// Re-reads what the worker may have written.
   fn reload(&mut self) {
+    // An unlock changes its row (date instead of progress bar): measure rows again.
+    self.row_heights.clear();
     let catalog = Arc::clone(&self.catalog);
     let all = catalog.all();
     let loaded = (|| {
@@ -641,11 +652,12 @@ impl ArchiApp {
 
   /// An achievement as a list row: badge, name, description, then its unlock date or
   /// progress; reward on the right.
-  fn achievement_row(&self, ui: &mut Ui, game_id: &str, achievement: &AchievementDef) {
+  /// Returns the row's rectangle.
+  fn achievement_row(&self, ui: &mut Ui, game_id: &str, achievement: &AchievementDef) -> Rect {
     let unlocked_at = self.unlocked_at(game_id, &achievement.id);
     let secret = achievement.hidden && unlocked_at.is_none();
     let fill = self.page_t(ui, FILL_IN);
-    widgets::hover_row(ui, Id::unique(("achievement", game_id, &achievement.id)), |ui| {
+    let response = widgets::hover_row(ui, Id::unique(("achievement", game_id, &achievement.id)), |ui| {
       ui.horizontal(|ui| {
         widgets::tier_badge(ui, achievement.tier, unlocked_at.is_some(), 46.0);
         ui.add_space(10.0);
@@ -682,6 +694,7 @@ impl ArchiApp {
         });
       });
     });
+    response.rect
   }
 
   /// A row of the unlock history.

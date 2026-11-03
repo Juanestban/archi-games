@@ -111,6 +111,8 @@ impl ArchiApp {
       let choice = LANGUAGES[i];
       self.language = choice;
       self.i18n.set_language(choice.resolve());
+      // Other texts, other row heights.
+      self.row_heights.clear();
       if let Some(tray) = &self.tray {
         tray.set_labels(&self.tray_labels());
       }

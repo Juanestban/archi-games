@@ -27,6 +27,7 @@ ui-filter-all = All
 ui-filter-unlocked = Unlocked
 ui-filter-locked = Locked
 ui-filter-any-tier = Any tier
+ui-search = Search achievements…
 ui-no-matches = No achievements match these filters.
 ui-hidden-name = Secret achievement
 ui-hidden-desc = Keep playing to reveal it.

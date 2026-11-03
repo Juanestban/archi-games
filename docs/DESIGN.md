@@ -275,7 +275,15 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
 - **Pantallas:**
   - **Perfil:** nivel, barra de XP, número de logros por rango.
   - **Juegos:** porcentaje completado y platino de cada juego.
-  - **Logros:** lista del juego con filtros (desbloqueados, pendientes, rango).
+  - **Logros:** lista del juego con filtros (desbloqueados, pendientes, rango)
+    y búsqueda por texto (sin distinguir mayúsculas ni tildes; un logro secreto
+    solo se encuentra por lo que muestra). Sin paginación: solo se maquetan las
+    filas visibles y el resto reserva su última altura medida (se mide de nuevo
+    al cambiar el ancho, el idioma o al desbloquear algo). Medido con scroll
+    continuo (2026-11-03): de 54 ms a 1,9 ms por fotograma en `cargo run` y de
+    3,2 ms a 1,15 ms en release. `cargo run` compila las dependencias con
+    `opt-level = 2` (`[profile.dev.package."*"]`): sin eso egui va unas 15 veces
+    más lento en depuración.
   - **Historial:** desbloqueos recientes.
   - **Ajustes:** nombre de Epic, clave de API, idioma, volumen, inicio con
     Windows.

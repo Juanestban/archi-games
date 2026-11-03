@@ -27,6 +27,7 @@ ui-filter-all = Todos
 ui-filter-unlocked = Desbloqueados
 ui-filter-locked = Pendientes
 ui-filter-any-tier = Cualquier rango
+ui-search = Buscar logros…
 ui-no-matches = Ningún logro coincide con los filtros.
 ui-hidden-name = Logro secreto
 ui-hidden-desc = Sigue jugando para descubrirlo.
