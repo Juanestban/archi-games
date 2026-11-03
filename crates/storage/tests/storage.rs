@@ -252,4 +252,11 @@ fn replays_count_once_and_their_totals_add_up() {
   assert_eq!(storage.replay_count("test", "acc").unwrap(), 2);
   assert!(storage.replay_totals("test", "other").unwrap().is_empty(), "per account");
   assert_eq!(storage.snapshots("test", "acc").unwrap().len(), 3);
+
+  // Only files that added stats are offered for deletion, until the player decides.
+  let to_review = |storage: &Storage| storage.replays_to_review("test", "acc").unwrap();
+  assert_eq!(to_review(&storage), [("a.replay".to_owned(), 1000), ("b.replay".to_owned(), 1000)]);
+  storage.mark_replay_reviewed("test", "a.replay", 1000).unwrap();
+  assert_eq!(to_review(&storage), [("b.replay".to_owned(), 1000)]);
+  assert_eq!(storage.replay_totals("test", "acc").unwrap()["damage"], 750, "deciding never changes the totals");
 }

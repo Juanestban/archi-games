@@ -1,7 +1,9 @@
 //! Finds Fortnite's finished replays on this PC. ADR 0001: only files the game has closed
-//! (it isn't running and they haven't changed for a while), only read, never written.
+//! (it isn't running and they haven't changed for a while), only read, never written. The
+//! one exception is deleting a replay already read, when the player asks for it.
 
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
@@ -11,6 +13,9 @@ use archi_storage::{ReplayFile, Timestamp};
 
 /// A file this recent may still be being written.
 const SETTLE_SECS: Timestamp = 30;
+
+/// "true": delete each replay once read, without asking. Off by default.
+pub const AUTO_DELETE_SETTING: &str = "replays.auto_delete";
 
 /// `%LOCALAPPDATA%\FortniteGame\Saved\Demos`, where Fortnite saves replays on PC.
 pub fn demos_dir() -> Option<PathBuf> {
@@ -54,6 +59,28 @@ pub fn read(candidate: &Candidate) -> ReplayFile {
   ReplayFile { file_name: candidate.name.clone(), file_size: candidate.size, stats }
 }
 
+/// Whether the replay that was read is still there (the same name and size).
+pub fn present(dir: &Path, name: &str, size: u64) -> bool {
+  inside(dir, name).ok().and_then(|path| std::fs::metadata(path).ok()).is_some_and(|meta| meta.is_file() && meta.len() == size)
+}
+
+/// Deletes a replay that was read, and only that one: a plain `.replay` name inside `dir`,
+/// with the size it had when read.
+pub fn delete(dir: &Path, name: &str, size: u64) -> io::Result<()> {
+  let path = inside(dir, name)?;
+  let meta = std::fs::metadata(&path)?;
+  if !meta.is_file() || meta.len() != size {
+    return Err(io::Error::new(io::ErrorKind::InvalidInput, "not the replay that was read"));
+  }
+  std::fs::remove_file(path)
+}
+
+fn inside(dir: &Path, name: &str) -> io::Result<PathBuf> {
+  let file = Path::new(name);
+  let plain = file.file_name() == Some(OsStr::new(name)) && file.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("replay"));
+  if plain { Ok(dir.join(name)) } else { Err(io::Error::new(io::ErrorKind::InvalidInput, "not a replay file name")) }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -75,6 +102,29 @@ mod tests {
 
     // Not a real replay: read as nothing to add, not an error.
     assert_eq!(read(&later[0]).stats, None);
+    std::fs::remove_dir_all(&dir).unwrap();
+  }
+
+  #[test]
+  fn deletes_only_the_replay_that_was_read() {
+    let dir = std::env::temp_dir().join(format!("archi-replays-delete-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("sub")).unwrap();
+    std::fs::write(dir.join("match.replay"), b"12345").unwrap();
+    std::fs::write(dir.join("notes.txt"), b"12345").unwrap();
+    std::fs::write(dir.join("sub").join("x.replay"), b"12345").unwrap();
+
+    assert!(present(&dir, "match.replay", 5));
+    assert!(!present(&dir, "match.replay", 6));
+    assert!(delete(&dir, "match.replay", 6).is_err(), "another match under the same name");
+    assert!(delete(&dir, "notes.txt", 5).is_err());
+    assert!(delete(&dir, r"sub\x.replay", 5).is_err());
+    assert!(delete(&dir, r"..\match.replay", 5).is_err());
+    assert!(dir.join("sub").join("x.replay").exists());
+
+    delete(&dir, "match.replay", 5).unwrap();
+    assert!(!present(&dir, "match.replay", 5));
+    assert_eq!(delete(&dir, "match.replay", 5).unwrap_err().kind(), io::ErrorKind::NotFound);
     std::fs::remove_dir_all(&dir).unwrap();
   }
 }

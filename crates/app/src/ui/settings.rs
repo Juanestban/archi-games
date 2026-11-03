@@ -176,6 +176,9 @@ impl ArchiApp {
     } else {
       (self.tr("ui-replays-none"), theme::FAINT)
     };
+    let auto_delete_label = self.tr("ui-replays-auto-delete");
+    let auto_delete_help = self.tr("ui-replays-auto-delete-help");
+    let mut auto_delete = self.auto_delete_replays;
     let button = if self.status.busy { self.tr("ui-busy") } else { self.tr("ui-poll-now") };
     let can_poll = !self.status.busy && self.status.has_api_key && self.account.is_some();
     block(ui, &self.tr("ui-settings-tracking"), |ui| {
@@ -191,7 +194,16 @@ impl ArchiApp {
           self.worker.send(Command::PollNow);
         }
       });
+      ui.add_space(8.0);
+      ui.horizontal(|ui| {
+        widgets::toggle(ui, &mut auto_delete);
+        ui.label(theme::body(auto_delete_label, 14.0, 500.0));
+      });
+      ui.label(theme::muted(auto_delete_help));
     });
+    if auto_delete != self.auto_delete_replays {
+      self.set_auto_delete_replays(auto_delete);
+    }
   }
 
   fn sound_settings(&mut self, ui: &mut Ui) {

@@ -26,10 +26,11 @@ use icons::Icon;
 use crate::catalog::Catalog;
 use crate::desktop::{self, SingleInstance};
 use crate::i18n::{I18n, LanguageChoice};
+use crate::replays;
 use crate::sound::{self, Sounds};
 use crate::tray::{self, ShellEvent, Tray};
 use crate::update;
-use crate::worker::{self, Command, Event, Problem, Status, UpdateInfo};
+use crate::worker::{self, Command, Event, Problem, ReplayRef, Status, UpdateInfo};
 
 const SIDEBAR_WIDTH: f32 = 236.0;
 const HEADER_HEIGHT: f32 = 52.0;
@@ -141,6 +142,9 @@ pub struct ArchiApp {
   start_hidden: bool,
   update: UpdateUi,
   auto_update: bool,
+  /// Replays already read that the player may delete; offered in a banner.
+  replays_to_review: Vec<ReplayRef>,
+  auto_delete_replays: bool,
   /// Set when the new version is starting: close on the next frame.
   close_now: bool,
   _instance: SingleInstance,
@@ -194,6 +198,8 @@ impl ArchiApp {
       start_hidden,
       update: UpdateUi::Idle,
       auto_update: storage.setting(update::AUTO_CHECK_SETTING).ok().flatten().as_deref() != Some("false"),
+      replays_to_review: Vec::new(),
+      auto_delete_replays: storage.setting(replays::AUTO_DELETE_SETTING).ok().flatten().as_deref() == Some("true"),
       close_now: false,
       _instance: instance,
       catalog,
@@ -287,6 +293,7 @@ impl ArchiApp {
           }
         }
         Event::UpdateFailed(problem) => self.update = UpdateUi::Failed(self.update.info().cloned(), problem),
+        Event::ReplaysToReview(files) => self.replays_to_review = files,
         Event::UpdateReady => {
           self.update = UpdateUi::Installing;
           self.quitting = true;
@@ -542,8 +549,67 @@ impl ArchiApp {
     }
   }
 
+  /// Asks whether to delete the replays just read. Deleting waits for the game to close.
+  fn replays_banner(&mut self, ui: &mut Ui) {
+    if self.replays_to_review.is_empty() {
+      return;
+    }
+    let count = self.replays_to_review.len() as u64;
+    let megabytes = self.replays_to_review.iter().map(|file| file.size).sum::<u64>() as f64 / (1024.0 * 1024.0);
+    let text = self.tr_args("ui-replays-review", &[("count", count.into()), ("size", format!("{megabytes:.1}").into())]);
+    let waiting = self.status.game_running.then(|| self.tr("ui-replays-review-wait"));
+    let (delete, keep, always) = (self.tr("ui-replays-delete"), self.tr("ui-replays-keep"), self.tr("ui-replays-delete-always"));
+    let mut action = None;
+    banner_frame().show(ui, |ui| {
+      ui.set_width(ui.available_width());
+      ui.horizontal(|ui| {
+        ui.vertical(|ui| {
+          widgets::hud(ui, &text, theme::INK);
+          if let Some(waiting) = &waiting {
+            ui.label(theme::muted(waiting.clone()));
+          }
+        });
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+          ui.add_enabled_ui(waiting.is_none(), |ui| {
+            if widgets::button(ui, &delete, widgets::Kind::Accent).clicked() {
+              action = Some(ReplayAction::Delete);
+            }
+          });
+          if widgets::button(ui, &keep, widgets::Kind::Secondary).clicked() {
+            action = Some(ReplayAction::Keep);
+          }
+          ui.add_enabled_ui(waiting.is_none(), |ui| {
+            if widgets::button(ui, &always, widgets::Kind::Secondary).clicked() {
+              action = Some(ReplayAction::DeleteAlways);
+            }
+          });
+        });
+      });
+    });
+    let Some(action) = action else { return };
+    let files = std::mem::take(&mut self.replays_to_review);
+    match action {
+      ReplayAction::Keep => self.worker.send(Command::KeepReplays(files)),
+      ReplayAction::Delete => self.worker.send(Command::DeleteReplays(files)),
+      ReplayAction::DeleteAlways => {
+        self.set_auto_delete_replays(true);
+        self.worker.send(Command::DeleteReplays(files));
+      }
+    }
+  }
+
+  pub(super) fn set_auto_delete_replays(&mut self, enabled: bool) {
+    self.auto_delete_replays = enabled;
+    // Not worth interrupting over: the choice still applies this session.
+    let _ = self.storage.set_setting(replays::AUTO_DELETE_SETTING, if enabled { "true" } else { "false" });
+    if enabled {
+      self.worker.send(Command::ScanReplays);
+    }
+  }
+
   fn content(&mut self, ui: &mut Ui) {
     self.update_banner(ui);
+    self.replays_banner(ui);
     let t = self.page_t(ui, PAGE_IN);
     ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
       Frame::NONE.inner_margin(Margin { left: 28, right: 28, top: 24, bottom: 28 }).show(ui, |ui| {
@@ -627,6 +693,13 @@ impl ArchiApp {
       });
     });
   }
+}
+
+#[derive(Clone, Copy)]
+enum ReplayAction {
+  Delete,
+  Keep,
+  DeleteAlways,
 }
 
 fn banner_frame() -> Frame {

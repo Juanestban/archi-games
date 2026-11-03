@@ -62,6 +62,90 @@ description = "fortnite-win_streak_3-desc"
 tier = "gold"
 condition = { type = "streak", all = [{ stat = "wins", eq = 1 }], count = 3 }
 
+# Paquete "career": más estadísticas de la API (partidas, tiempo, modos).
+# No cuenta para el platino, como todo logro añadido después del juego base.
+
+[[achievement]]
+id = "matches_100"
+name = "fortnite-matches_100-name"
+description = "fortnite-matches_100-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", stat = "matches", target = 100 }
+
+[[achievement]]
+id = "kills_100"
+name = "fortnite-kills_100-name"
+description = "fortnite-kills_100-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", stat = "kills", target = 100 }
+
+[[achievement]]
+id = "playtime_24h"
+name = "fortnite-playtime_24h-name"
+description = "fortnite-playtime_24h-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", stat = "minutes_played", target = 1440 }
+
+[[achievement]]
+id = "duo_win"
+name = "fortnite-duo_win-name"
+description = "fortnite-duo_win-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", mode = "duo", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "squad_win"
+name = "fortnite-squad_win-name"
+description = "fortnite-squad_win-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", mode = "squad", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "ltm_win"
+name = "fortnite-ltm_win-name"
+description = "fortnite-ltm_win-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", mode = "ltm", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "outlived_10000"
+name = "fortnite-outlived_10000-name"
+description = "fortnite-outlived_10000-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "total", stat = "players_outlived", target = 10000 }
+
+[[achievement]]
+id = "squad_podium_25"
+name = "fortnite-squad_podium_25-name"
+description = "fortnite-squad_podium_25-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "total", mode = "squad", stat = "top3", target = 25 }
+
+[[achievement]]
+id = "match_kills_15"
+name = "fortnite-match_kills_15-name"
+description = "fortnite-match_kills_15-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "match", all = [{ stat = "kills", gte = 15 }] }
+
+[[achievement]]
+id = "first_down"
+name = "fortnite-first_down-name"
+description = "fortnite-first_down-desc"
+tier = "bronze"
+pack = "career"
+hidden = true
+condition = { type = "match", all = [{ stat = "deaths", eq = 1 }, { stat = "players_outlived", eq = 0 }] }
+
 [[achievement]]
 id = "platinum"
 name = "fortnite-platinum-name"

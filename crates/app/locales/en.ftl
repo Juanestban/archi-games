@@ -120,3 +120,13 @@ ui-replays-count = { $count ->
    *[other] { $count } replays read (Replays pack achievements).
 }
 ui-replays-none = No replays read yet. For the Replays pack achievements, turn on Settings > Game > Record Replays in Fortnite (PC only).
+ui-replays-review = { $count ->
+    [one] Replay read ({ $size } MB). Delete it to free up space?
+   *[other] { $count } replays read ({ $size } MB). Delete them to free up space?
+}
+ui-replays-review-wait = Close Fortnite to delete them.
+ui-replays-delete = Delete
+ui-replays-keep = Keep
+ui-replays-delete-always = Always delete
+ui-replays-auto-delete = Delete replays after reading them
+ui-replays-auto-delete-help = Only the ones Archi Games has read, and only with Fortnite closed. You won't be able to watch them in Fortnite. Replays that can't be read are kept.

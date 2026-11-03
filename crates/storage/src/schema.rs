@@ -47,6 +47,10 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (game_id, file_name, file_size)
     );
 ",
+  r"
+    -- 1 once the player chose to keep or delete the file (or it was deleted automatically).
+    ALTER TABLE replays ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0;
+",
 ];
 
 pub fn migrate(conn: &mut Connection) -> Result<()> {

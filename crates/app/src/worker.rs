@@ -45,6 +45,18 @@ pub enum Command {
     manual: bool,
   },
   InstallUpdate,
+  /// The player's answer about replays already read: delete them or keep them.
+  DeleteReplays(Vec<ReplayRef>),
+  KeepReplays(Vec<ReplayRef>),
+  /// Look for replays now, e.g. right after turning automatic deletion on.
+  ScanReplays,
+}
+
+/// A replay already read that the player hasn't kept or deleted yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReplayRef {
+  pub name: String,
+  pub size: u64,
 }
 
 /// A newer release, as the UI shows it.
@@ -69,6 +81,8 @@ pub enum Event {
   UpdateFailed(Problem),
   /// The new version is starting: the app must quit now.
   UpdateReady,
+  /// Replays read and still on disk that the player may want to delete (the whole list).
+  ReplaysToReview(Vec<ReplayRef>),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -264,6 +278,25 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
           install_update(updater, update, events).await;
         }
       }
+      // ADR 0001: files are only touched while the game is closed; the UI waits for it too.
+      Some(Command::DeleteReplays(files)) if !status.game_running => {
+        if let Some(dir) = replays::demos_dir() {
+          delete_replays(&storage, &dir, &files);
+        }
+        if let Some(session) = &session {
+          review_replays(&storage, session.account_id(), events);
+        }
+      }
+      Some(Command::DeleteReplays(_)) => {}
+      Some(Command::KeepReplays(files)) => {
+        for file in &files {
+          let _ = storage.mark_replay_reviewed(GAME_ID, &file.name, file.size);
+        }
+        if let Some(session) = &session {
+          review_replays(&storage, session.account_id(), events);
+        }
+      }
+      Some(Command::ScanReplays) => next_replay_scan = Instant::now(),
       Some(Command::SetApiKey(key)) => {
         let key = key.trim();
         match secrets::set_api_key(key) {
@@ -414,5 +447,40 @@ fn scan_replays(storage: &Storage, session: &mut Session<'_>, status: &mut Statu
   if count != status.replays {
     status.replays = count;
     events.status(status);
+  }
+  review_replays(storage, session.account_id(), events);
+}
+
+/// Deletes the replays already read if the player asked for that, or offers them for
+/// deletion. Only called while the game is closed.
+fn review_replays(storage: &Storage, account_id: &str, events: &Events) {
+  let Some(dir) = replays::demos_dir() else { return };
+  let mut pending = Vec::new();
+  for (name, size) in storage.replays_to_review(GAME_ID, account_id).unwrap_or_default() {
+    if replays::present(&dir, &name, size) {
+      pending.push(ReplayRef { name, size });
+    } else {
+      // Deleted by hand or by Fortnite itself: nothing left to ask about.
+      let _ = storage.mark_replay_reviewed(GAME_ID, &name, size);
+    }
+  }
+  if storage.setting(replays::AUTO_DELETE_SETTING).ok().flatten().as_deref() == Some("true") {
+    delete_replays(storage, &dir, &pending);
+    pending.clear();
+  }
+  events.send(Event::ReplaysToReview(pending));
+}
+
+fn delete_replays(storage: &Storage, dir: &Path, files: &[ReplayRef]) {
+  for file in files {
+    let gone = match replays::delete(dir, &file.name, file.size) {
+      Ok(()) => true,
+      // Already gone, or no longer the file that was read: don't ask about it again.
+      Err(error) => matches!(error.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::InvalidInput),
+    };
+    // Otherwise (e.g. in use) it stays on the list and is retried.
+    if gone {
+      let _ = storage.mark_replay_reviewed(GAME_ID, &file.name, file.size);
+    }
   }
 }

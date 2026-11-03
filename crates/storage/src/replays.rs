@@ -55,6 +55,27 @@ impl Storage {
     Ok(totals)
   }
 
+  /// Files that added stats and the player hasn't chosen to keep or delete yet, oldest first.
+  /// Unreadable files never come back: they may be useful to a later version of the reader.
+  pub fn replays_to_review(&self, game_id: &str, account_id: &str) -> Result<Vec<(String, u64)>> {
+    let mut stmt = self.conn.prepare(
+      "SELECT file_name, file_size FROM replays
+       WHERE game_id = ?1 AND account_id = ?2 AND stats IS NOT NULL AND reviewed = 0
+       ORDER BY processed_at, file_name",
+    )?;
+    let rows = stmt.query_map(params![game_id, account_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u64)))?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+  }
+
+  /// The player kept or deleted the file: don't ask again.
+  pub fn mark_replay_reviewed(&self, game_id: &str, file_name: &str, file_size: u64) -> Result<()> {
+    self.conn.execute(
+      "UPDATE replays SET reviewed = 1 WHERE game_id = ?1 AND file_name = ?2 AND file_size = ?3",
+      params![game_id, file_name, file_size as i64],
+    )?;
+    Ok(())
+  }
+
   /// How many of the account's files added stats.
   pub fn replay_count(&self, game_id: &str, account_id: &str) -> Result<u32> {
     let count: i64 = self.conn.query_row(

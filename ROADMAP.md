@@ -14,10 +14,12 @@ terminarla y actualiza **Estado actual**.
 - **Además:** actualizaciones desde GitHub Releases (ADR 0002), licencia MIT o Apache-2.0 y
   releases automáticas al subir un tag `vX.Y.Z` (ver `RELEASING.md`).
 - **Publicado:** [v0.3.0](https://github.com/Juanestban/archi-games/releases/tag/v0.3.0) (MSI, portable y
-  `SHA256SUMS.txt`). Comprobado: la v0.2.0 publicada avisa de la 0.3.0 y el actualizador la
-  descarga y verifica. Falta que el usuario pulse Actualizar para probar la instalación.
-- **En curso:** fase 2. Hecho: lector de repeticiones, paquete "Repeticiones" con 7 logros y
-  limpieza de la entrada de inicio con Windows al desinstalar.
+  `SHA256SUMS.txt`). Comprobado de punta a punta: la v0.2.0 publicada avisa de la 0.3.0 y el
+  usuario se actualizó desde la app.
+- **En curso:** fase 2. Hecho: lector de repeticiones, paquete "Repeticiones" con 7 logros,
+  limpieza de la entrada de inicio con Windows al desinstalar, borrar repeticiones ya leídas
+  (preguntando o automático) y paquete "career" con 10 logros más de la API.
+  La API ya funciona con la cuenta real: 7 lecturas guardadas que siguen sus partidas.
   Falta validar el lector con un `.replay` real del usuario (debe activar Grabar repeticiones).
 - **Siguiente:** con repeticiones reales, comprobar el lector y la unidad de la distancia; después,
   logros por tipo de arma. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
@@ -103,6 +105,9 @@ terminarla y actualiza **Estado actual**.
 - [x] Paquete "Repeticiones" (modo `replay`): Demoledor, Ángel de la guarda, Maratonista, Leñador,
   Arquitecto, Ojo de halcón e Intocable (secreto); no cuenta para el platino
 - [x] Ajustes muestra cuántas repeticiones se han leído o cómo activarlas
+- [x] Preguntar si borrar cada repetición ya leída y opción de borrarlas automáticamente
+  (Ajustes > Seguimiento), solo con Fortnite cerrado
+- [x] Paquete "career" con 10 logros de estadísticas de la API que el juego base no usaba
 - [ ] Validar el lector con repeticiones reales del usuario (y la unidad de la distancia)
 - [ ] Logros por tipo de arma (eventos `playerElim`): averiguar qué número es cada arma
 - [ ] Más juegos (nuevos `GameTracker`)

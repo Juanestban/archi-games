@@ -26,7 +26,9 @@ Reglas obligatorias. Cualquier función nueva que las rompa se rechaza.
    inyectado en el juego.
 4. Los datos vienen de APIs públicas por HTTPS. Los archivos locales del juego
    (p. ej. `.replay`) solo se leen en modo lectura y cuando el juego ya los
-   cerró.
+   cerró. Única escritura: borrar una repetición ya leída si el jugador lo
+   pide (o activó el borrado automático), con el juego cerrado y solo ese
+   archivo (mismo nombre y tamaño, dentro de la carpeta de repeticiones).
 
 **Frente a los antivirus**
 

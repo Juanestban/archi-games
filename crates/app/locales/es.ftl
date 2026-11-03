@@ -120,3 +120,13 @@ ui-replays-count = { $count ->
    *[other] { $count } repeticiones analizadas (logros del paquete Repeticiones).
 }
 ui-replays-none = Ninguna repetición analizada todavía. Para los logros del paquete Repeticiones, activa en Fortnite Ajustes > Juego > Grabar repeticiones (solo PC).
+ui-replays-review = { $count ->
+    [one] Repetición analizada ({ $size } MB). ¿Borrarla para liberar espacio?
+   *[other] { $count } repeticiones analizadas ({ $size } MB). ¿Borrarlas para liberar espacio?
+}
+ui-replays-review-wait = Cierra Fortnite para poder borrarlas.
+ui-replays-delete = Borrar
+ui-replays-keep = Conservar
+ui-replays-delete-always = Borrar siempre
+ui-replays-auto-delete = Borrar las repeticiones después de analizarlas
+ui-replays-auto-delete-help = Solo las que Archi Games ya leyó, y con Fortnite cerrado. Ya no podrás verlas en Fortnite. Las que no se pueden leer se conservan.

@@ -343,6 +343,30 @@ instalador MSI y, a medio plazo, ejecutable firmado.
 - **Fuera por ahora:** cofres (solo en los datos de red, ver Ideas futuras) y
   logros por tipo de arma (los números de arma de `playerElim` cambian entre
   temporadas; se harán con repeticiones reales).
+- **Borrar repeticiones ya leídas** (pedido por el usuario, para ahorrar disco):
+  tras leerlas, un aviso arriba de la ventana ofrece *Borrar*, *Conservar* o
+  *Borrar siempre*. Ajustes > Seguimiento tiene el interruptor "Borrar las
+  repeticiones después de analizarlas" (`replays.auto_delete`, apagado por
+  defecto). Solo se ofrecen o borran las que sumaron estadísticas (las
+  ilegibles se conservan para una versión futura del lector), solo con
+  Fortnite cerrado y solo ese archivo: nombre simple `.replay` dentro de la
+  carpeta de repeticiones y el mismo tamaño que al leerlo. La decisión se
+  guarda en `replays.reviewed` (migración v3) y no se vuelve a preguntar; si
+  el archivo ya no está, se da por decidida. Borrar no cambia los totales.
+
+### Paquete `career` (más estadísticas de la API)
+
+La API da más contadores de los que usa el juego base: partidas, minutos
+jugados, jugadores superados, muertes, `top3`/`top5`/`top6`/`top12`/`top25`
+y cada modo por separado (solo, duo, squad, ltm). El paquete `career` los usa
+sin necesitar repeticiones, también en consola: Veterano de la isla (100
+partidas), Cazador (100 eliminaciones), Un día en la isla (24 h), Dúo dinámico,
+Escuadrón de élite y Fuera de lo común (ganar en dúos, escuadrones y un modo
+de tiempo limitado), Resistente (10 000 jugadores superados), Podio (25 top 3
+en escuadrones), Masacre (15 eliminaciones en una partida) y Aterrizaje
+forzoso (secreto: ser el primero en caer). Como paquete, no cuenta para el
+platino. Ojo: en `all`, cada `top*` viene de un único modo (`top10`/`top25` de
+solo, `top5`/`top12` de dúos, `top3`/`top6` de escuadrones).
 
 ## Pendiente de investigar
 
