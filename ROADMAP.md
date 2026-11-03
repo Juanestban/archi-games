@@ -13,10 +13,12 @@ terminarla y actualiza **Estado actual**.
   desbloqueo debe verse en Perfil e Historial.
 - **Además:** actualizaciones desde GitHub Releases (ADR 0002), licencia MIT o Apache-2.0 y
   releases automáticas al subir un tag `vX.Y.Z` (ver `RELEASING.md`).
-- **Publicado:** [v0.2.0](https://github.com/Juanestban/archi-games/releases/tag/v0.2.0) (MSI, portable y
-  `SHA256SUMS.txt`), comprobado: sumas correctas y el actualizador la descarga y verifica.
-- **En curso:** fase 2. Hecho: lector de repeticiones y paquete "Repeticiones" con 7 logros.
-  Falta validarlo con un `.replay` real del usuario (debe activar Grabar repeticiones).
+- **Publicado:** [v0.3.0](https://github.com/Juanestban/archi-games/releases/tag/v0.3.0) (MSI, portable y
+  `SHA256SUMS.txt`). Comprobado: la v0.2.0 publicada avisa de la 0.3.0 y el actualizador la
+  descarga y verifica. Falta que el usuario pulse Actualizar para probar la instalación.
+- **En curso:** fase 2. Hecho: lector de repeticiones, paquete "Repeticiones" con 7 logros y
+  limpieza de la entrada de inicio con Windows al desinstalar.
+  Falta validar el lector con un `.replay` real del usuario (debe activar Grabar repeticiones).
 - **Siguiente:** con repeticiones reales, comprobar el lector y la unidad de la distancia; después,
   logros por tipo de arma. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-02.
@@ -106,7 +108,7 @@ terminarla y actualiza **Estado actual**.
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
 - [ ] Firmar el ejecutable y el MSI, y verificar la firma al actualizar (ADR 0002)
-- [ ] Al desinstalar, quitar la entrada de inicio con Windows
+- [x] Al desinstalar, quitar la entrada de inicio con Windows (solo si es de esa copia)
 
 ## Ideas futuras (sin decidir)
 

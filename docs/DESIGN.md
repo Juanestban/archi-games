@@ -190,9 +190,12 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   la v6 exige aceptar una EULA). MSI por usuario en
   `%LOCALAPPDATA%\Programs\Archi Games` con acceso directo en el menú Inicio;
   sin administrador. `cargo-wix` no sirve: solo soporta WiX 3.
-- **Limitación conocida:** desinstalar no borra la entrada de `Run` si el
-  usuario activó el inicio con Windows; conviene desactivarlo antes. Firmar el
-  ejecutable sigue en la fase 2.
+- **Desinstalar:** el MSI ejecuta la copia instalada con `--uninstall` antes de
+  borrar archivos, solo en una desinstalación real (no al actualizar), y esta
+  borra la entrada de `Run` si arranca esa misma copia (la de una portable se
+  respeta). Si falla, la desinstalación sigue. Los datos (SQLite y la clave en
+  el Administrador de credenciales) se conservan. Firmar el ejecutable sigue en
+  la fase 2.
 
 ### Actualizaciones y releases
 

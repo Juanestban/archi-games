@@ -48,8 +48,12 @@
 
     <!-- After an in-app update (msiexec ... LAUNCHAPP=1), start the new version. -->
     <CustomAction Id="LaunchAfterUpdate" FileRef="ArchiGamesExe" ExeCommand="--after-update" Return="asyncNoWait" Impersonate="yes" Execute="immediate" />
+    <!-- A real uninstall (not the old version leaving during an upgrade) drops the
+         "Start with Windows" entry while the exe still exists. Failure never blocks it. -->
+    <CustomAction Id="ForgetAutostart" FileRef="ArchiGamesExe" ExeCommand="--uninstall" Return="ignore" Impersonate="yes" Execute="immediate" />
     <InstallExecuteSequence>
       <Custom Action="LaunchAfterUpdate" After="InstallFinalize" Condition="LAUNCHAPP = 1 AND NOT REMOVE" />
+      <Custom Action="ForgetAutostart" Before="RemoveFiles" Condition="REMOVE ~= &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
     </InstallExecuteSequence>
 
     <Feature Id="Main">

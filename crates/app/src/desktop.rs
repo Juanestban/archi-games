@@ -126,7 +126,11 @@ mod imp {
   }
 
   pub fn autostart_enabled(entry: &str) -> bool {
-    read_value(RUN_KEY, entry).ok().flatten().is_some()
+    autostart_entry(entry).is_some()
+  }
+
+  pub fn autostart_entry(entry: &str) -> Option<String> {
+    read_value(RUN_KEY, entry).ok().flatten()
   }
 
   pub fn set_autostart(entry: &str, command: Option<&str>) -> io::Result<()> {
@@ -156,6 +160,10 @@ mod imp {
     false
   }
 
+  pub fn autostart_entry(_entry: &str) -> Option<String> {
+    None
+  }
+
   pub fn set_autostart(_entry: &str, _command: Option<&str>) -> io::Result<()> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "autostart is Windows-only for now"))
   }
@@ -166,9 +174,26 @@ pub use imp::{SingleInstance, autostart_enabled, set_autostart};
 /// The `Run` entry's name, as Task Manager's Startup tab shows it.
 pub const AUTOSTART_ENTRY: &str = "Archi Games";
 
+/// The MSI runs the installed copy with this while uninstalling (wix/main.wxs).
+pub const UNINSTALL_ARG: &str = "--uninstall";
+
 /// The command the `Run` entry holds: this executable, quoted, opening to the tray.
 pub fn autostart_command() -> std::io::Result<String> {
   Ok(format!("\"{}\" {BACKGROUND_ARG}", std::env::current_exe()?.display()))
+}
+
+/// On uninstall: drops the `Run` entry, but only if it starts this copy (a portable copy
+/// may own it instead).
+pub fn forget_autostart() -> std::io::Result<()> {
+  match imp::autostart_entry(AUTOSTART_ENTRY) {
+    Some(entry) if starts_this_copy(&entry, &autostart_command()?) => set_autostart(AUTOSTART_ENTRY, None),
+    _ => Ok(()),
+  }
+}
+
+/// Windows paths ignore case.
+fn starts_this_copy(entry: &str, own: &str) -> bool {
+  entry.trim().eq_ignore_ascii_case(own)
 }
 
 #[cfg(all(test, windows))]
@@ -204,5 +229,12 @@ mod tests {
   fn autostart_command_quotes_the_path() {
     let command = autostart_command().unwrap();
     assert!(command.starts_with('"') && command.ends_with("\" --background"));
+  }
+
+  #[test]
+  fn uninstall_only_forgets_its_own_entry() {
+    let own = r#""C:\Users\a\AppData\Local\Programs\Archi Games\archi-games.exe" --background"#;
+    assert!(starts_this_copy(r#""c:\users\a\appdata\local\programs\archi games\archi-games.exe" --background "#, own));
+    assert!(!starts_this_copy(r#""D:\Tools\ArchiGames-0.3.0-x64-portable.exe" --background"#, own));
   }
 }

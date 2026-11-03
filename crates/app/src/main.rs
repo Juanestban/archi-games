@@ -37,6 +37,10 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
+  // Run by the MSI while uninstalling: no window, and a running copy doesn't matter.
+  if std::env::args().any(|arg| arg == desktop::UNINSTALL_ARG) {
+    return Ok(desktop::forget_autostart()?);
+  }
   // A second launch (e.g. the Start menu while it sits in the tray) shows the
   // running window instead.
   update::clean_up();
