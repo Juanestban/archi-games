@@ -40,7 +40,7 @@ Reglas obligatorias. Cualquier función nueva que las rompa se rechaza.
    GitHub. Única excepción: la actualización de la propia app, con las
    garantías del [ADR 0002](0002-actualizaciones-desde-github.md).
 8. Datos en `%APPDATA%\archi-games`. Se distribuye con un instalador MSI
-   estándar y, a medio plazo, con el ejecutable firmado.
+   estándar. La firma del ejecutable está aplazada (ver DESIGN).
 
 ## Consecuencias
 

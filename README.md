@@ -68,6 +68,13 @@ versión como instalador MSI (por usuario, sin administrador; se instala en
 las versiones nuevas y se actualiza sola al pulsar **Actualizar**
 ([ADR 0002](docs/adr/0002-actualizaciones-desde-github.md)).
 
+El instalador y el `.exe` no están firmados (como los de muchos proyectos de
+código abierto), así que Windows SmartScreen puede mostrar *"Windows protegió
+su PC"* o *"editor desconocido"*. Para instalarlo de todas formas: **Más
+información → Ejecutar de todas formas**. Si quieres comprobar que el archivo
+es el publicado, compara su SHA-256 (`Get-FileHash <archivo>`) con
+`SHA256SUMS.txt` de la misma release.
+
 Para publicar una versión, ver [RELEASING.md](RELEASING.md). Para empaquetar
 en local:
 

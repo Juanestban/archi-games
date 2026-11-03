@@ -32,8 +32,10 @@ define la única excepción y sus garantías.
 
 - Las sumas viven en la misma release que los binarios: protegen de descargas
   corruptas o incompletas, no de alguien que controle la cuenta de GitHub. La
-  defensa contra eso es **firmar el ejecutable y el MSI** (fase 2); cuando
-  exista, el actualizador también comprobará la firma.
+  defensa contra eso sería **firmar el ejecutable y el MSI**, aplazado por
+  decisión del usuario (2026-11-03, ver DESIGN); si se retoma, el actualizador
+  también comprobará la firma. Mientras tanto, la cuenta de GitHub debe tener
+  la verificación en dos pasos activada.
 - Sin firma, Windows SmartScreen puede avisar al ejecutar la versión nueva.
 - La API de GitHub sin autenticar permite 60 consultas por hora e IP; con una
   cada 6 h no hay riesgo.

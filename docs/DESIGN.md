@@ -194,8 +194,12 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   borrar archivos, solo en una desinstalación real (no al actualizar), y esta
   borra la entrada de `Run` si arranca esa misma copia (la de una portable se
   respeta). Si falla, la desinstalación sigue. Los datos (SQLite y la clave en
-  el Administrador de credenciales) se conservan. Firmar el ejecutable sigue en
-  la fase 2.
+  el Administrador de credenciales) se conservan.
+- **Sin firma de código (decidido 2026-11-03):** el `.exe` y el MSI se publican
+  sin firmar, como ArtCraft. SmartScreen puede avisar; el README explica cómo
+  seguir y cómo comprobar el SHA-256. La integridad de las actualizaciones la
+  da `SHA256SUMS.txt` sobre HTTPS desde GitHub (ADR 0002). Si se retoma:
+  SignPath Foundation (gratis, con solicitud) o un certificado OV.
 
 ### Actualizaciones y releases
 

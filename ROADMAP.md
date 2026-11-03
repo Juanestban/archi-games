@@ -112,7 +112,10 @@ terminarla y actualiza **Estado actual**.
 - [ ] Logros por tipo de arma (eventos `playerElim`): averiguar qué número es cada arma
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
-- [ ] Firmar el ejecutable y el MSI, y verificar la firma al actualizar (ADR 0002)
+- [ ] ~~Firmar el ejecutable y el MSI~~: aplazado por decisión del usuario (2026-11-03). Se publica
+  sin firmar, como ArtCraft (comprobado: su v0.41.0 tampoco está firmada); el README explica el
+  aviso de SmartScreen. Opciones si se retoma: SignPath Foundation (gratis para código abierto,
+  con solicitud) o un certificado OV propio
 - [x] Al desinstalar, quitar la entrada de inicio con Windows (solo si es de esa copia)
 
 ## Ideas futuras (sin decidir)
