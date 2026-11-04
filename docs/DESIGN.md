@@ -120,7 +120,7 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
 
 ### Notificación y sonidos (decidido al implementar el paso 5)
 
-- **Ventana de notificación:** viewport inmediato de egui de 400×96 a 24 px del
+- **Ventana de notificación:** viewport diferido de egui de 400×96 a 24 px del
   borde derecho y 72 px del inferior (deja libre la barra de tareas) del monitor
   principal. Sin bordes, transparente, siempre encima, deja pasar los clics, no
   aparece en la barra de tareas y no roba el foco. Solo existe mientras hay
@@ -129,7 +129,11 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   (0,4 s). Orden: desbloqueos, platinos al final y la subida de nivel la última.
   El platino lleva un borde que late.
 - **Con la ventana principal minimizada u oculta** las notificaciones siguen
-  saliendo: mientras hay cola, `logic` pide `RequestPaintWhileHidden`.
+  saliendo: mientras hay cola, `logic` pide `RequestPaintWhileHidden`. El
+  viewport es diferido, no inmediato: con la ventana principal oculta, eframe
+  0.37 no puede crear la ventana de un viewport inmediato y entra en pánico
+  (la app se cerraba al salir el banner durante una partida, 2026-11-03). La
+  tarjeta ya traducida se comparte con su callback por un `Arc<Mutex<_>>`.
 - **Sonidos sintetizados** en código (tonos de campana con envolvente), sin
   archivos de audio ni licencias: más notas cuanto más alto el rango; el platino
   acaba en un acorde. Suenan al aparecer su tarjeta. Sin dispositivo de audio,

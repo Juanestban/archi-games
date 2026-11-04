@@ -4,6 +4,7 @@
 //! Cards queue and show one at a time.
 
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 use archi_core::Tier;
 use archi_storage::Unlock;
@@ -55,6 +56,18 @@ pub struct Notifier {
   queue: VecDeque<Toast>,
   /// When the front card appeared (egui time, seconds).
   since: Option<f64>,
+  /// What the notification window draws, shared with its own callback.
+  card: Arc<Mutex<Option<Card>>>,
+}
+
+/// The front card, translated, ready for the notification window.
+#[derive(Clone)]
+struct Card {
+  tier: Option<Tier>,
+  title: String,
+  name: String,
+  reward: Option<String>,
+  since: f64,
 }
 
 pub struct Showing<'a> {
@@ -90,11 +103,13 @@ impl ArchiApp {
   pub(super) fn notifications(&mut self, ctx: &egui::Context) {
     let now = ctx.input(|i| i.time);
     let Some(showing) = self.notifier.current(now) else { return };
-    let (toast, elapsed) = (showing.toast.clone(), showing.elapsed);
+    let (toast, since) = (showing.toast.clone(), now - showing.elapsed);
     if showing.started {
       self.sounds.play(toast.cue(), self.volume);
     }
     ctx.request_repaint();
+    let card = self.card(&toast, since);
+    *self.notifier.card.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(card);
 
     let monitor = ctx.input(|i| i.viewport().monitor_size).unwrap_or(vec2(1920.0, 1080.0));
     let builder = ViewportBuilder::default()
@@ -108,52 +123,30 @@ impl ArchiApp {
       .with_resizable(false)
       .with_inner_size(SIZE)
       .with_position(pos2(monitor.x - SIZE.x - MARGIN.x, monitor.y - SIZE.y - MARGIN.y));
-    ctx.show_viewport_immediate(ViewportId::from_hash_of("archi-notification"), builder, |ui, _| self.draw_toast(ui, &toast, elapsed));
+    // Deferred, not immediate: eframe 0.37 can't create an immediate viewport's window while
+    // the main window is hidden (in the tray during a game) and panics instead.
+    let shared = Arc::clone(&self.notifier.card);
+    ctx.show_viewport_deferred(ViewportId::from_hash_of("archi-notification"), builder, move |ui, _| {
+      let card = shared.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone();
+      if let Some(card) = card {
+        let elapsed = ui.ctx().input(|i| i.time) - card.since;
+        draw_card(ui, &card, elapsed.clamp(0.0, SHOW_FOR));
+        ui.ctx().request_repaint();
+      }
+    });
   }
 
-  fn draw_toast(&self, ui: &mut Ui, toast: &Toast, elapsed: f64) {
-    let t = elapsed as f32;
-    ui.set_opacity(((SHOW_FOR - elapsed) / FADE_OUT).clamp(0.0, 1.0) as f32);
-    let slide = widgets::ease_out(t / SLIDE_IN as f32);
-    let rect = Rect::from_min_size(pos2((1.0 - slide) * SIZE.x, 0.0), SIZE).shrink(1.0);
-    let p = ui.painter().with_clip_rect(rect.expand(1.0));
-
-    let (accent, title, name, xp) = match toast {
+  fn card(&self, toast: &Toast, since: f64) -> Card {
+    match toast {
       Toast::Unlock { name, tier, xp } => {
         let title = if *tier == Tier::Platinum { "ui-toast-platinum" } else { "ui-toast-unlocked" };
-        (theme::tier_color(*tier), self.tr(title), self.tr(name), Some(*xp))
+        let reward = self.tr_args("ui-xp-reward", &[("xp", (*xp).into())]);
+        Card { tier: Some(*tier), title: self.tr(title), name: self.tr(name), reward: Some(reward), since }
       }
-      Toast::LevelUp(level) => (theme::ACCENT_400, self.tr("ui-toast-level-up"), self.tr_args("ui-level", &[("level", (*level).into())]), None),
-    };
-    let platinum = matches!(toast, Toast::Unlock { tier: Tier::Platinum, .. });
-
-    // Square card, hairline in the tier's color, a stripe on the left.
-    p.rect(rect, 0.0, theme::PANEL, Stroke::new(1.0, theme::fade(accent, 0.55)), egui::StrokeKind::Inside);
-    p.rect_filled(Rect::from_min_size(rect.min, vec2(3.0, rect.height())), 0.0, accent);
-    let badge = Rect::from_center_size(pos2(rect.left() + 46.0, rect.center().y), vec2(54.0, 54.0));
-    match toast {
-      Toast::Unlock { tier, .. } => widgets::paint_tier_badge(&p, badge, *tier, true),
-      Toast::LevelUp(_) => level_badge(&p, badge),
+      Toast::LevelUp(level) => {
+        Card { tier: None, title: self.tr("ui-toast-level-up"), name: self.tr_args("ui-level", &[("level", (*level).into())]), reward: None, since }
+      }
     }
-    let text_x = badge.right() + 16.0;
-    p.galley(pos2(text_x, rect.top() + 22.0), widgets::caps(ui, &title, 10.5, accent), accent);
-    p.galley(pos2(text_x, rect.top() + 40.0), widgets::display_text(ui, &name, 19.0, theme::INK), theme::INK);
-    if let Some(xp) = xp {
-      let reward = self.tr_args("ui-xp-reward", &[("xp", xp.into())]);
-      p.text(pos2(rect.right() - 16.0, rect.center().y), egui::Align2::RIGHT_CENTER, reward, theme::mono(14.0), accent);
-    }
-
-    // A band of light sweeps across once; on a platinum it keeps sweeping.
-    let sweep = if platinum { (t - 0.25).rem_euclid(1.6) / 0.9 } else { (t - 0.25) / 0.75 };
-    if (0.0..1.0).contains(&sweep) {
-      let x = rect.left() - 90.0 + (rect.width() + 180.0) * widgets::ease_out(sweep);
-      let band = vec![pos2(x, rect.top()), pos2(x + 46.0, rect.top()), pos2(x - 4.0, rect.bottom()), pos2(x - 50.0, rect.bottom())];
-      let glow = if platinum { 0.16 } else { 0.08 };
-      p.add(egui::Shape::convex_polygon(band, theme::fade(Color32::WHITE, glow), Stroke::NONE));
-    }
-    // Time left, as a line along the bottom.
-    let left = (1.0 - elapsed / SHOW_FOR).clamp(0.0, 1.0) as f32;
-    p.hline(rect.left()..=rect.left() + rect.width() * left, rect.bottom() - 1.0, Stroke::new(2.0, theme::fade(accent, 0.7)));
   }
 
   /// Shows a sample of every kind of card (Settings > Sound).
@@ -163,6 +156,43 @@ impl ArchiApp {
     let cards = [sample(Tier::Gold), sample(Tier::Platinum), Toast::LevelUp(self.summary.level.level + 1)];
     self.notifier.push(cards);
   }
+}
+
+fn draw_card(ui: &mut Ui, card: &Card, elapsed: f64) {
+  let t = elapsed as f32;
+  ui.set_opacity(((SHOW_FOR - elapsed) / FADE_OUT).clamp(0.0, 1.0) as f32);
+  let slide = widgets::ease_out(t / SLIDE_IN as f32);
+  let rect = Rect::from_min_size(pos2((1.0 - slide) * SIZE.x, 0.0), SIZE).shrink(1.0);
+  let p = ui.painter().with_clip_rect(rect.expand(1.0));
+  let accent = card.tier.map_or(theme::ACCENT_400, theme::tier_color);
+  let platinum = card.tier == Some(Tier::Platinum);
+
+  // Square card, hairline in the tier's color, a stripe on the left.
+  p.rect(rect, 0.0, theme::PANEL, Stroke::new(1.0, theme::fade(accent, 0.55)), egui::StrokeKind::Inside);
+  p.rect_filled(Rect::from_min_size(rect.min, vec2(3.0, rect.height())), 0.0, accent);
+  let badge = Rect::from_center_size(pos2(rect.left() + 46.0, rect.center().y), vec2(54.0, 54.0));
+  match card.tier {
+    Some(tier) => widgets::paint_tier_badge(&p, badge, tier, true),
+    None => level_badge(&p, badge),
+  }
+  let text_x = badge.right() + 16.0;
+  p.galley(pos2(text_x, rect.top() + 22.0), widgets::caps(ui, &card.title, 10.5, accent), accent);
+  p.galley(pos2(text_x, rect.top() + 40.0), widgets::display_text(ui, &card.name, 19.0, theme::INK), theme::INK);
+  if let Some(reward) = &card.reward {
+    p.text(pos2(rect.right() - 16.0, rect.center().y), egui::Align2::RIGHT_CENTER, reward, theme::mono(14.0), accent);
+  }
+
+  // A band of light sweeps across once; on a platinum it keeps sweeping.
+  let sweep = if platinum { (t - 0.25).rem_euclid(1.6) / 0.9 } else { (t - 0.25) / 0.75 };
+  if (0.0..1.0).contains(&sweep) {
+    let x = rect.left() - 90.0 + (rect.width() + 180.0) * widgets::ease_out(sweep);
+    let band = vec![pos2(x, rect.top()), pos2(x + 46.0, rect.top()), pos2(x - 4.0, rect.bottom()), pos2(x - 50.0, rect.bottom())];
+    let glow = if platinum { 0.16 } else { 0.08 };
+    p.add(egui::Shape::convex_polygon(band, theme::fade(Color32::WHITE, glow), Stroke::NONE));
+  }
+  // Time left, as a line along the bottom.
+  let left = (1.0 - elapsed / SHOW_FOR).clamp(0.0, 1.0) as f32;
+  p.hline(rect.left()..=rect.left() + rect.width() * left, rect.bottom() - 1.0, Stroke::new(2.0, theme::fade(accent, 0.7)));
 }
 
 fn level_badge(p: &egui::Painter, rect: Rect) {
