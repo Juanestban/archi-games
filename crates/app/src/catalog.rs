@@ -16,6 +16,7 @@ impl Catalog {
       games: vec![
         GameDefinition::from_toml_str(include_str!("../../../games/fortnite/achievements.toml"))?,
         GameDefinition::from_toml_str(include_str!("../../../games/cs2/achievements.toml"))?,
+        GameDefinition::from_toml_str(include_str!("../../../games/lol/achievements.toml"))?,
       ],
       platform: GameDefinition::from_toml_str(include_str!("../../../games/platform/achievements.toml"))?,
       rules: Progression::default(),
@@ -42,7 +43,8 @@ mod tests {
   use super::*;
   use crate::i18n::{I18n, Language};
 
-  /// What Settings shows for a game polled through an API, and for one fed by the game (CS2).
+  /// What Settings shows for a game polled through an API, for one fed by the game once set up
+  /// (CS2), and for one the app reads from the game with no setup (League of Legends).
   const API_TEXTS: [&str; 9] =
     ["name", "account", "account-hint", "api-key", "api-key-help", "closed-note", "error-private", "error-not-found", "error-network"];
   const LOCAL_TEXTS: [&str; 16] = [
@@ -63,6 +65,17 @@ mod tests {
     "error-install",
     "error-private",
   ];
+  const LIVE_TEXTS: [&str; 9] = [
+    "name",
+    "integration",
+    "integration-help",
+    "integration-waiting",
+    "integration-receiving",
+    "integration-account",
+    "running",
+    "closed",
+    "last-match",
+  ];
 
   /// Settings shows these for each game, so every game needs them in both languages.
   #[test]
@@ -71,7 +84,11 @@ mod tests {
     for language in [Language::Es, Language::En] {
       let i18n = I18n::new(language);
       for game in catalog.games() {
-        let suffixes: &[&str] = if game.game.id == archi_cs2::GAME_ID { &LOCAL_TEXTS } else { &API_TEXTS };
+        let suffixes: &[&str] = match game.game.id.as_str() {
+          archi_cs2::GAME_ID => &LOCAL_TEXTS,
+          archi_lol::GAME_ID => &LIVE_TEXTS,
+          _ => &API_TEXTS,
+        };
         for suffix in suffixes {
           let token = format!("{}-{suffix}", game.game.id);
           assert_ne!(i18n.tr(&token), token, "{token} missing in {language:?}");

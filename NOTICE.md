@@ -29,3 +29,11 @@ según **FortniteReplayDecompressor** (<https://github.com/Shiqan/FortniteReplay
 MIT) y agrupa las causas de muerte con la enumeración `EDeathCause` publicada en
 **fortnite-replay-parser** (<https://www.npmjs.com/package/fortnite-replay-parser>, MIT).
 No se copia código de ninguno de los dos.
+
+## Certificado de Riot Games
+
+`crates/trackers/lol/src/riotgames.pem` es el certificado raíz público de Riot
+Games, publicado en <https://static.developer.riotgames.com/docs/lol/riotgames.pem>
+para validar el servidor local de League of Legends. Se incluye sin cambios.
+League of Legends y Riot Games son marcas de Riot Games, Inc.; Archi Games no
+está afiliado ni respaldado por Riot Games.

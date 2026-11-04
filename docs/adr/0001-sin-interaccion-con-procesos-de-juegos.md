@@ -36,6 +36,13 @@ Reglas obligatorias. Cualquier función nueva que las rompa se rechaza.
    `127.0.0.1:43117`, donde la app escucha solo en la interfaz local y solo
    acepta envíos con su token. Es el mecanismo que Valve ofrece para esto (lo
    usan overlays y periféricos) y no toca el proceso.
+   Para League of Legends: su *Live Client Data API* oficial. Durante una
+   partida, el propio juego sirve el estado de la partida en
+   `https://127.0.0.1:2999`; Riot la documenta para herramientas de terceros.
+   La app solo le hace peticiones `GET` de lectura mientras el proceso del
+   juego existe (detectado por nombre, regla 2), sin configuración ni
+   archivos. El certificado del servidor se valida contra la raíz pública de
+   Riot (`riotgames.pem`), incluida en la app.
 
 **Frente a los antivirus**
 

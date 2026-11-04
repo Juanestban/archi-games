@@ -46,3 +46,7 @@ cs2-knife_25-name = A cuchillo
 cs2-knife_25-desc = Consigue 25 bajas con el cuchillo.
 cs2-zeus_10-name = Zeus
 cs2-zeus_10-desc = Consigue 10 bajas con el táser Zeus x27.
+
+cs2-pack-arsenal = Arsenal
+cs2-arsenal_platinum-name = Maestro del arsenal
+cs2-arsenal_platinum-desc = Consigue todos los logros del paquete Arsenal.

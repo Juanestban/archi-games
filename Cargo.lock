@@ -306,6 +306,7 @@ dependencies = [
  "archi-core",
  "archi-cs2",
  "archi-fortnite",
+ "archi-lol",
  "archi-storage",
  "eframe",
  "fluent-bundle",
@@ -322,6 +323,16 @@ dependencies = [
  "unic-langid",
  "windows-sys 0.59.0",
  "winresource",
+]
+
+[[package]]
+name = "archi-lol"
+version = "0.5.1"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

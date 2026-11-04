@@ -1,4 +1,4 @@
-//! One game's achievements, filtered by state, tier and text. Only the rows in view are laid
+//! One game's achievements, filtered by state, tier, pack and text. Only the rows in view are laid
 //! out; the rest just reserve their last known height, so long lists scroll smoothly.
 
 use std::sync::Arc;
@@ -40,6 +40,25 @@ impl ArchiApp {
         self.tier_filter = TIERS[i];
       }
 
+      // A list, not segments: a game can have many packs.
+      let pack = self.pack_filter.as_ref().filter(|(game, _)| *game == self.shown_game).map(|(_, pack)| pack.clone());
+      let label = |pack: &Option<Option<String>>| match pack {
+        None => self.tr("ui-filter-any-pack"),
+        Some(None) => self.tr("ui-filter-base-game"),
+        Some(Some(pack)) => self.tr(&definition.pack_token(pack)),
+      };
+      let options: Vec<Option<Option<String>>> =
+        [None, Some(None)].into_iter().chain(definition.packs().into_iter().map(|p| Some(Some(p.to_owned())))).collect();
+      let mut chosen = pack.clone();
+      egui::ComboBox::from_id_salt("pack-filter").selected_text(label(&pack)).width(170.0).show_ui(ui, |ui| {
+        for option in &options {
+          ui.selectable_value(&mut chosen, option.clone(), label(option));
+        }
+      });
+      if chosen != pack {
+        self.pack_filter = chosen.map(|pack| (self.shown_game.clone(), pack));
+      }
+
       let hint = self.tr("ui-search");
       ui.add(TextEdit::singleline(&mut self.achievement_query).hint_text(hint).desired_width(220.0).margin(egui::vec2(10.0, 6.0)));
     });
@@ -51,6 +70,7 @@ impl ArchiApp {
       .achievements
       .iter()
       .filter(|a| self.tier_filter.is_none_or(|tier| a.tier == tier))
+      .filter(|a| self.pack_filter.as_ref().is_none_or(|(game, pack)| game != game_id || a.pack == *pack))
       .filter(|a| {
         let unlocked = self.unlocked_at(game_id, &a.id).is_some();
         match self.state_filter {

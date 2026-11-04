@@ -46,3 +46,7 @@ cs2-knife_25-name = Up Close
 cs2-knife_25-desc = Get 25 knife kills.
 cs2-zeus_10-name = Zeus
 cs2-zeus_10-desc = Get 10 kills with the Zeus x27 taser.
+
+cs2-pack-arsenal = Arsenal
+cs2-arsenal_platinum-name = Arsenal Master
+cs2-arsenal_platinum-desc = Unlock every achievement in the Arsenal pack.

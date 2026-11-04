@@ -174,6 +174,37 @@ fn platinum_unlocks_last_and_ignores_packs() {
 }
 
 #[test]
+fn each_pack_platinum_needs_only_its_own_pack() {
+  let game = GameDefinition::from_toml_str(&format!(
+    "{GAME}{}",
+    r#"
+[[achievement]]
+id = "dlc_wins"
+name = "a"
+description = "b"
+tier = "silver"
+pack = "season-2"
+condition = { type = "total", stat = "wins", target = 2 }
+
+[[achievement]]
+id = "season_plat"
+name = "a"
+description = "b"
+tier = "platinum"
+pack = "season-2"
+"#
+  ))
+  .unwrap();
+  let mut account = Account::default();
+  let mut progress = GameProgress::default();
+  progress.apply(&game, account.snap());
+
+  account.play("duo", true, 400).play("duo", true, 600);
+  assert_eq!(ids(progress.apply(&game, account.snap())), ["dlc_kills", "dlc_wins", "season_plat"], "the base game isn't needed");
+  assert!(!progress.is_unlocked("plat"));
+}
+
+#[test]
 fn replaying_history_rebuilds_the_same_state() {
   let game = game();
   let mut account = Account::default();

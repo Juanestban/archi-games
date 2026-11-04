@@ -8,7 +8,6 @@
 use std::collections::BTreeMap;
 
 use archi_core::{GameDefinition, GameProgress, GameTracker, MODE_ALL, Progression, StatSnapshot, TrackError};
-use archi_fortnite::replay::REPLAY_MODE;
 use archi_storage::{ReplayFile, Storage, StorageError, Timestamp, Unlock, unix_now};
 use thiserror::Error;
 
@@ -31,8 +30,8 @@ pub struct Session<'a> {
   progress: GameProgress,
   /// Every local match's stats, summed.
   replay_totals: BTreeMap<String, u64>,
-  /// The mode local matches add to.
-  local_mode: &'static str,
+  /// The mode local matches add to: the game's first `local_modes` (`all` without one).
+  local_mode: &'a str,
 }
 
 impl<'a> Session<'a> {
@@ -49,7 +48,7 @@ impl<'a> Session<'a> {
     let (progress, mut unlocks) = storage.rebuild_progress(game, account_id)?;
     unlocks.extend(storage.evaluate_platform(platform, &games, rules, unix_now())?);
     let replay_totals = storage.replay_totals(&game.game.id, account_id)?;
-    let local_mode = if game.game.id == archi_cs2::GAME_ID { MODE_ALL } else { REPLAY_MODE };
+    let local_mode = game.game.local_modes.first().map_or(MODE_ALL, String::as_str);
     let account_id = account_id.to_owned();
     Ok((Self { storage, game, games, platform, rules, account_id, progress, replay_totals, local_mode }, unlocks))
   }
@@ -220,6 +219,22 @@ mod tests {
     assert_eq!(storage.snapshots("cs2", "steam").unwrap().len(), 3, "the zero baseline is stored once");
   }
 
+  /// League of Legends: like CS2, each finished match adds to `all` from a zero baseline.
+  #[test]
+  fn a_league_match_unlocks_base_and_pack_achievements() {
+    let lol = GameDefinition::from_toml_str(include_str!("../../../games/lol/achievements.toml")).unwrap();
+    let (_, platform) = definitions();
+    let rules = Progression::default();
+    let storage = Storage::open_in_memory().unwrap();
+    let (mut session, _) = Session::start(&storage, &lol, vec![&lol], &platform, &rules, "Riot Tuxedo#EUW").unwrap();
+    session.start_from_zero(1).unwrap();
+    let stats = [("matches", 1), ("wins", 1), ("wins_classic", 1), ("kills", 15), ("deaths", 0), ("penta_kills", 1), ("first_blood", 1)];
+    let file =
+      ReplayFile { file_name: "classic-8760".into(), file_size: 0, stats: Some(stats.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()) };
+    let unlocked = session.record_replay(file, 2).unwrap();
+    assert_eq!(ids(&unlocked), ["first_win", "first_blood", "match_kills_15", "perfect_game", "penta", "match_kills_10", "classic_win"]);
+  }
+
   #[tokio::test]
   async fn replays_unlock_match_achievements_and_survive_api_polls() {
     let (fortnite, platform) = definitions();
@@ -229,7 +244,7 @@ mod tests {
     let tracker = ReplayTracker::new([Ok(totals(10, 0, 5)), Ok(totals(10, 0, 5))]);
     session.poll(&tracker).await.unwrap();
 
-    assert_eq!(ids(&session.record_replay(replay("1.replay", 1200, 30, false), 2).unwrap()), ["demolisher"]);
+    assert_eq!(ids(&session.record_replay(replay("1.replay", 1200, 30, false), 2).unwrap()), ["match_damage_500", "demolisher"]);
     // An API poll in between must not reset the replay totals...
     assert!(session.poll(&tracker).await.unwrap().is_empty());
     // ...so the next replay is again exactly one match: a win without taking damage.
@@ -255,7 +270,7 @@ mod tests {
     let tracker = ReplayTracker::new([Ok(totals(300, 20, 500)), Ok(totals(300, 20, 500)), Ok(totals(301, 21, 512))]);
     assert!(session.poll(&tracker).await.unwrap().is_empty(), "first poll is the baseline");
     assert!(session.poll(&tracker).await.unwrap().is_empty(), "no match played");
-    assert_eq!(ids(&session.poll(&tracker).await.unwrap()), ["first_win", "solo_dominant"]);
+    assert_eq!(ids(&session.poll(&tracker).await.unwrap()), ["first_win", "solo_dominant", "match_kills_5", "match_kills_10"]);
     assert_eq!(storage.snapshots("fortnite", "acc").unwrap().len(), 2, "the identical poll isn't stored");
   }
 

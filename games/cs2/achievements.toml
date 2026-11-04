@@ -116,3 +116,10 @@ tier = "gold"
 hidden = true
 pack = "arsenal"
 condition = { type = "total", stat = "kills_taser", target = 10 }
+
+[[achievement]]
+id = "arsenal_platinum"
+name = "cs2-arsenal_platinum-name"
+description = "cs2-arsenal_platinum-desc"
+tier = "platinum"
+pack = "arsenal"

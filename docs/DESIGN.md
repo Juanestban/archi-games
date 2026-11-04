@@ -229,7 +229,13 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
   en el nivel 1 y no hay máximo. Los valores son configurables sin recompilar.
 - **Platino:** se desbloquea solo al completar todos los logros del **juego
   base**. Los logros nuevos van en **paquetes** (`pack`), que no afectan al
-  platino. Un platino no se pierde nunca.
+  platino del juego base. Un platino no se pierde nunca.
+- **Platino por paquete** (pedido por el usuario, 2026-11-03): cada paquete
+  puede tener su propio platino, que llega al completar ese paquete (y solo
+  ese). Como mucho uno por parte; un paquete sin platino es válido (p. ej. los
+  de Fortnite por dispositivo: nadie juega con mando, teclado y pantalla
+  táctil). Todos cuentan igual para el XP y para los metalogros de platinos.
+  El nombre de cada paquete es el token Fluent `<juego>-pack-<pack>`.
 - **Logros secretos** (`hidden`): no se ve qué hay que hacer hasta
   desbloquearlos.
 - **Barras de progreso** en los logros de tipo `total` (p. ej. 37/100). **No**
@@ -275,8 +281,9 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
 - **Pantallas:**
   - **Perfil:** nivel, barra de XP, número de logros por rango.
   - **Juegos:** porcentaje completado y platino de cada juego.
-  - **Logros:** lista del juego con filtros (desbloqueados, pendientes, rango)
-    y búsqueda por texto (sin distinguir mayúsculas ni tildes; un logro secreto
+  - **Logros:** lista del juego con filtros (desbloqueados, pendientes, rango,
+    paquete: una lista desplegable, porque un juego puede tener muchos) y
+    búsqueda por texto; cada logro de un paquete muestra su nombre (sin distinguir mayúsculas ni tildes; un logro secreto
     solo se encuentra por lo que muestra). Sin paginación: solo se maquetan las
     filas visibles y el resto reserva su última altura medida (se mide de nuevo
     al cambiar el ancho, el idioma o al desbloquear algo). Medido con scroll
@@ -357,9 +364,8 @@ instalador MSI y, a medio plazo, ejecutable firmado.
   sumarían.
 - **Paquete `replays`:** no cuenta para el platino, para que quien juega en
   consola pueda completar el juego base.
-- **Fuera por ahora:** cofres (solo en los datos de red, ver Ideas futuras) y
-  logros por tipo de arma (los números de arma de `playerElim` cambian entre
-  temporadas; se harán con repeticiones reales).
+- **Fuera por ahora:** cofres (solo en los datos de red, ver Ideas futuras).
+  Los logros por tipo de arma ya están (ver "Más logros de Fortnite").
 - **Borrar repeticiones ya leídas** (pedido por el usuario, para ahorrar disco):
   tras leerlas, un aviso arriba de la ventana ofrece *Borrar*, *Conservar* o
   *Borrar siempre*. Ajustes > Seguimiento tiene el interruptor "Borrar las
@@ -497,11 +503,71 @@ Se revisó todo lo que dan las repeticiones y la API:
   Residente de la isla (100 h), Incansable (1000 partidas) y Último en pie
   (100 000 jugadores superados).
 
+### Paquetes con platino y escalones de progreso (2026-11-03, a petición del usuario)
+
+- **Fortnite por temas:** juego base (sin cambios) y los paquetes Trayectoria
+  (`career`, API), Dispositivos (`devices`, sin platino), Combate (`combat`),
+  Arsenal (`arsenal`), Explorador (`explorer`), Destrucción (`destruction`) y
+  Constructor (`builder`). Los cinco últimos salen de las repeticiones. El
+  antiguo paquete `replays` se repartió entre ellos: los desbloqueos no cambian
+  (se guardan por id de logro).
+- **Escalones:** cada estadística acumulada tiene varios niveles, de bronce a
+  oro: daño a jugadores (10 000 a 1 000 000), daño a estructuras (10 000 a
+  1 000 000), derribos, asistencias, reanimaciones, eliminaciones por arma,
+  distancia (10 a 1000 km), materiales, victorias (hasta 500), bajas (hasta
+  5000), partidas, horas, top 10 y nivel del pase; más retos en una partida
+  (5, 10 y 15 bajas; 500 y 2000 de daño; 3 km; 5000 a estructuras). 116 logros
+  y 7 platinos en total.
+- **Nuevas estadísticas de las repeticiones** (de los eventos `playerElim` ya
+  leídos): `eliminations_players` (eliminaciones de jugadores reales: los bots
+  no tienen id de Epic) y `first_blood` (el primer derribo o eliminación de la
+  partida, por hora del evento, es del jugador; las caídas y la tormenta no
+  cuentan). Sin validar aún con repeticiones reales.
+- **Plataforma:** Coleccionista de platinos (5), Veterano (nivel 25) y
+  Primeros pasos (25 logros).
+- **CS2:** platino del paquete Arsenal.
+
+### League of Legends (fase 2, decidido con el usuario)
+
+- **Fuente:** la *Live Client Data API* del propio juego
+  (`https://127.0.0.1:2999/liveclientdata/allgamedata`), documentada por Riot
+  para terceros. Solo existe durante una partida. La API web de Riot necesita
+  una clave de desarrollador que caduca cada día (o una de producción
+  aprobada), así que se descartó. Excepción en el ADR 0001.
+- **Certificado:** autofirmado por Riot. Se valida contra su raíz pública
+  (`riotgames.pem`, hasta 2043) aceptando que el nombre no sea `127.0.0.1`.
+- **Cuándo:** con `League of Legends.exe` en marcha (el proceso de la partida,
+  no el cliente), una petición en cada vuelta del hilo (5 s). Cada respuesta
+  trae la partida entera, así que se puede empezar a seguirla a medias.
+- **Partida terminada:** cuando aparece el evento `GameEnd` (`Result` `Win` o
+  `Lose`); se cuenta una vez. Si el juego se cierra antes, no cuenta. Id: modo
+  y minuto de inicio (hora actual menos `gameTime`), y `replay_seen` evita
+  contarla dos veces. No cuentan la herramienta de práctica, los tutoriales,
+  Enjambre (`STRAWBERRY`), las partidas con bots ni las de menos de 5 minutos
+  (remakes).
+- **Cuenta:** el Riot ID del jugador activo, vinculado solo en su primera
+  partida (como CS2), con base a cero (`local_modes = ["all"]`).
+- **Estadísticas por partida (modo `all`):** partidas y victorias (también
+  `matches_<modo>`/`wins_<modo>`: `classic`, `aram`, `arena`…), asesinatos,
+  muertes, asistencias, súbditos, puntuación de visión, nivel del campeón,
+  multiasesinatos (un triple también cuenta como doble), primera sangre, aces,
+  torretas, inhibidores, dragones, dragones ancestrales, heraldos y barones
+  (como autor o asistente) y robos (solo el autor). Los jugadores se
+  reconocen por Riot ID, nombre de juego o nombre de invocador.
+- **Logros:** juego base con platino (Campeón de Runaterra) y paquetes con
+  platino: Trayectoria, Combate, Objetivos, Súbditos y visión y Modos. 59 en
+  total.
+- **Sin probar todavía con una partida real** (el usuario tiene el juego
+  instalado): falta confirmar el certificado y los nombres de los eventos.
+
 ## Pendiente de investigar
 
 - Límites de peticiones de fortnite-api.com: no están documentados; se respeta `429`/`Retry-After`.
 - Confirmar con más repeticiones que la causa 2 es pistola (las demás
-  encajan por distancia).
+  encajan por distancia), y que `first_blood` y `eliminations_players` cuentan
+  bien.
+- League of Legends: confirmar con una partida real el certificado, los nombres
+  de jugador en los eventos y el evento `GameEnd`.
 - **Descartado:** detectar cofres leyendo el teclado (cuánto se mantiene pulsada
   la tecla de interactuar). Es un hook global de teclado, prohibido por el
   ADR 0001 y típico de keyloggers. Además no es fiable: puertas, munición,

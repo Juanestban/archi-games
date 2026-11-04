@@ -15,11 +15,32 @@ tier = "gold"
 condition = { type = "total", stat = "platinums", target = 1 }
 
 [[achievement]]
+id = "platinums_5"
+name = "platform-platinums_5-name"
+description = "platform-platinums_5-desc"
+tier = "gold"
+condition = { type = "total", stat = "platinums", target = 5 }
+
+[[achievement]]
 id = "level_10"
 name = "platform-level_10-name"
 description = "platform-level_10-desc"
 tier = "silver"
 condition = { type = "total", stat = "level", target = 10 }
+
+[[achievement]]
+id = "level_25"
+name = "platform-level_25-name"
+description = "platform-level_25-desc"
+tier = "gold"
+condition = { type = "total", stat = "level", target = 25 }
+
+[[achievement]]
+id = "unlocked_25"
+name = "platform-unlocked_25-name"
+description = "platform-unlocked_25-desc"
+tier = "bronze"
+condition = { type = "total", stat = "unlocked", target = 25 }
 
 [[achievement]]
 id = "unlocked_100"

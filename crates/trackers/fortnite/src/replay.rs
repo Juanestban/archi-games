@@ -114,6 +114,8 @@ pub struct Elimination {
   pub gun: u8,
   /// Between both players; `None` when the game didn't record a position.
   pub distance_m: Option<f64>,
+  /// When it happened, in milliseconds since the replay started.
+  pub at_ms: u32,
 }
 
 impl MatchSummary {
@@ -129,6 +131,11 @@ impl MatchSummary {
     let knocks = mine.iter().filter(|e| e.knocked).count() as u64;
     let long_range = distances.iter().filter(|&&d| d >= LONG_RANGE_M).count() as u64;
     let longest = distances.iter().copied().fold(0.0, f64::max) as u64;
+    // Bots have no account id.
+    let players = mine.iter().filter(|e| !e.knocked && e.eliminated.is_some()).count() as u64;
+    // The match's first knock or elimination by someone (not the storm or a fall).
+    let first = self.eliminations.iter().filter(|e| e.eliminator.is_some() && e.eliminator != e.eliminated).min_by_key(|e| e.at_ms);
+    let first_blood = first.is_some_and(|e| e.eliminator.as_deref() == Some(&account_id));
     // Eliminations only: a knock and its finish would count one player twice.
     let by_weapon = |group: &str| mine.iter().filter(|e| !e.knocked && weapon_group(e.gun) == Some(group)).count() as u64;
     // Centimetres, as confirmed with real replays (a 16-minute match: 325 760).
@@ -153,6 +160,8 @@ impl MatchSummary {
       ("long_range_eliminations", long_range),
       // Summed like the rest, so a one-match delta is that match's longest.
       ("longest_elimination_m", longest),
+      ("eliminations_players", players),
+      ("first_blood", u64::from(first_blood)),
     ]);
     stats.extend(WEAPON_STATS.map(|(group, stat)| (stat, by_weapon(group))));
     Some(stats)
@@ -209,7 +218,7 @@ pub fn parse(bytes: &[u8]) -> Result<MatchSummary, ReplayError> {
     let _id = e.fstring()?;
     let group = e.fstring()?;
     let metadata = e.fstring()?;
-    let _start = e.u32()?;
+    let start = e.u32()?;
     let _end = e.u32()?;
     let data_size = usize::try_from(e.i32()?).map_err(|_| ReplayError::Malformed)?;
     let elimination = group == ELIMINATION_GROUP;
@@ -223,7 +232,7 @@ pub fn parse(bytes: &[u8]) -> Result<MatchSummary, ReplayError> {
     };
     if elimination {
       // An unknown layout loses the eliminations, never the match.
-      summary.eliminations.extend(parse_elimination(&data));
+      summary.eliminations.extend(parse_elimination(&data, start));
       continue;
     }
     let mut d = Reader { bytes: &data, pos: 0 };
@@ -252,7 +261,7 @@ pub fn parse(bytes: &[u8]) -> Result<MatchSummary, ReplayError> {
 
 /// Version 10: a byte, both players' transforms (rotation, location and scale as doubles),
 /// both players, the weapon category and whether it was a knock.
-fn parse_elimination(data: &[u8]) -> Option<Elimination> {
+fn parse_elimination(data: &[u8], at_ms: u32) -> Option<Elimination> {
   let mut d = Reader { bytes: data, pos: 0 };
   if d.u32().ok()? != ELIMINATION_VERSION {
     return None;
@@ -268,7 +277,7 @@ fn parse_elimination(data: &[u8]) -> Option<Elimination> {
   let known = |at: &[f64; 3]| at.iter().any(|&c| c != 0.0);
   let distance_m = (known(&eliminated_at) && known(&eliminator_at))
     .then(|| eliminated_at.iter().zip(eliminator_at).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt() / 100.0);
-  Some(Elimination { eliminated, eliminator, knocked, gun, distance_m })
+  Some(Elimination { eliminated, eliminator, knocked, gun, distance_m, at_ms })
 }
 
 /// A transform's location, in centimetres; its rotation and scale are skipped.
@@ -403,11 +412,15 @@ mod tests {
   }
 
   fn event_in(group: &str, metadata: &str, data: &[u8]) -> Vec<u8> {
+    event_at(group, metadata, data, 0)
+  }
+
+  fn event_at(group: &str, metadata: &str, data: &[u8], start_ms: u32) -> Vec<u8> {
     let mut body = Vec::new();
     fstring(&mut body, "evt1");
     fstring(&mut body, group);
     fstring(&mut body, metadata);
-    body.extend(0u32.to_le_bytes());
+    body.extend(start_ms.to_le_bytes());
     body.extend(0u32.to_le_bytes());
     let data = encrypt(data);
     body.extend((data.len() as i32).to_le_bytes());
@@ -505,12 +518,31 @@ mod tests {
     assert_eq!(stats["eliminations_shotgun"], 2);
     assert_eq!(stats["eliminations_smg"], 0);
     assert!(WEAPON_STATS.iter().all(|(_, stat)| stats.contains_key(stat)), "every group, 0 included");
+    // One of the two eliminations was a bot's.
+    assert_eq!(stats["eliminations_players"], 1);
     // Another layout version: skipped, the match still counts.
     let mut other_version = elimination(None, Some(ME), [1.0; 3], [2.0; 3], true);
     other_version[0] = 11;
     let mut bytes = replay(false, 1, 3);
     bytes.extend(event_in(ELIMINATION_GROUP, "versionedEvent", &other_version));
     assert_eq!(parse(&bytes).unwrap().stats(ME).unwrap()["knocks"], 0);
+  }
+
+  #[test]
+  fn first_blood_is_the_earliest_knock_or_elimination_by_a_player() {
+    let other = "b082afd6f11e4d1aa03bc14b59c2ae6f";
+    let at = |eliminated, eliminator, start| {
+      event_at(ELIMINATION_GROUP, "versionedEvent", &elimination(eliminated, eliminator, [1.0; 3], [2.0; 3], true), start)
+    };
+    let first_blood = |events: &[Vec<u8>]| {
+      let mut bytes = replay(false, 1, 3);
+      events.iter().for_each(|e| bytes.extend(e));
+      parse(&bytes).unwrap().stats(ME).unwrap()["first_blood"]
+    };
+    // Written out of order: the earliest one counts, and a fall (no eliminator) never does.
+    assert_eq!(first_blood(&[at(Some(other), Some(ME), 9_000), at(Some(ME), None, 1_000), at(None, Some(ME), 5_000)]), 1);
+    assert_eq!(first_blood(&[at(Some(other), Some(ME), 9_000), at(Some(ME), Some(other), 4_000)]), 0);
+    assert_eq!(first_blood(&[]), 0);
   }
 
   #[test]

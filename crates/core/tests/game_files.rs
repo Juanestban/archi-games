@@ -52,7 +52,7 @@ fn bundled_games_parse_and_are_translated() {
     let dir = entry.unwrap().path();
     let source = fs::read_to_string(dir.join("achievements.toml")).unwrap();
     let definition = GameDefinition::from_toml_str(&source).unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
-    let tokens: BTreeSet<String> = definition.tokens().map(str::to_owned).collect();
+    let tokens: BTreeSet<String> = definition.tokens().into_iter().collect();
 
     for locale in LOCALES {
       let path = dir.join("locales").join(format!("{locale}.ftl"));

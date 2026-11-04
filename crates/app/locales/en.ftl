@@ -27,11 +27,12 @@ ui-filter-all = All
 ui-filter-unlocked = Unlocked
 ui-filter-locked = Locked
 ui-filter-any-tier = Any tier
+ui-filter-any-pack = Every pack
+ui-filter-base-game = Base game
 ui-search = Search achievements…
 ui-no-matches = No achievements match these filters.
 ui-hidden-name = Secret achievement
 ui-hidden-desc = Keep playing to reveal it.
-ui-pack = Add-on pack
 ui-xp-reward = +{ $xp } XP
 ui-unlocked-when = Unlocked { $when }
 

@@ -1,5 +1,7 @@
 # Logros de Fortnite. Los textos son tokens Fluent: ver locales/{es,en}.ftl.
-# Modos: all (total), solo, duo, trio, squad, ltm.
+# Modos: all (total), solo, duo, trio, squad, ltm; replay (repeticiones); battlepass; input_*.
+# El juego base y cada paquete pueden tener un platino, que llega solo al completar su parte.
+# El nombre de cada paquete es el token fortnite-pack-<pack>.
 
 [game]
 id = "fortnite"
@@ -64,8 +66,13 @@ description = "fortnite-win_streak_3-desc"
 tier = "gold"
 condition = { type = "streak", all = [{ stat = "wins", eq = 1 }], count = 3 }
 
-# Paquete "career": más estadísticas de la API (partidas, tiempo, modos).
-# No cuenta para el platino, como todo logro añadido después del juego base.
+[[achievement]]
+id = "platinum"
+name = "fortnite-platinum-name"
+description = "fortnite-platinum-desc"
+tier = "platinum"
+
+# Paquete "career": estadísticas de la API (partidas, tiempo, modos, victorias y bajas).
 
 [[achievement]]
 id = "matches_100"
@@ -76,12 +83,108 @@ pack = "career"
 condition = { type = "total", stat = "matches", target = 100 }
 
 [[achievement]]
+id = "matches_250"
+name = "fortnite-matches_250-name"
+description = "fortnite-matches_250-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "total", stat = "matches", target = 250 }
+
+[[achievement]]
+id = "matches_1000"
+name = "fortnite-matches_1000-name"
+description = "fortnite-matches_1000-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "matches", target = 1000 }
+
+[[achievement]]
+id = "wins_250"
+name = "fortnite-wins_250-name"
+description = "fortnite-wins_250-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "wins", target = 250 }
+
+[[achievement]]
+id = "wins_500"
+name = "fortnite-wins_500-name"
+description = "fortnite-wins_500-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "wins", target = 500 }
+
+[[achievement]]
+id = "top10_250"
+name = "fortnite-top10_250-name"
+description = "fortnite-top10_250-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "total", stat = "top10", target = 250 }
+
+[[achievement]]
+id = "top10_1000"
+name = "fortnite-top10_1000-name"
+description = "fortnite-top10_1000-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "top10", target = 1000 }
+
+[[achievement]]
 id = "kills_100"
 name = "fortnite-kills_100-name"
 description = "fortnite-kills_100-desc"
 tier = "bronze"
 pack = "career"
 condition = { type = "total", stat = "kills", target = 100 }
+
+[[achievement]]
+id = "kills_2500"
+name = "fortnite-kills_2500-name"
+description = "fortnite-kills_2500-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "kills", target = 2500 }
+
+[[achievement]]
+id = "kills_5000"
+name = "fortnite-kills_5000-name"
+description = "fortnite-kills_5000-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "kills", target = 5000 }
+
+[[achievement]]
+id = "match_kills_5"
+name = "fortnite-match_kills_5-name"
+description = "fortnite-match_kills_5-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "match", all = [{ stat = "kills", gte = 5 }] }
+
+[[achievement]]
+id = "match_kills_10"
+name = "fortnite-match_kills_10-name"
+description = "fortnite-match_kills_10-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "match", all = [{ stat = "kills", gte = 10 }] }
+
+[[achievement]]
+id = "match_kills_15"
+name = "fortnite-match_kills_15-name"
+description = "fortnite-match_kills_15-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "match", all = [{ stat = "kills", gte = 15 }] }
+
+[[achievement]]
+id = "win_streak_5"
+name = "fortnite-win_streak_5-name"
+description = "fortnite-win_streak_5-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "streak", all = [{ stat = "wins", eq = 1 }], count = 5 }
 
 [[achievement]]
 id = "playtime_24h"
@@ -92,12 +195,52 @@ pack = "career"
 condition = { type = "total", stat = "minutes_played", target = 1440 }
 
 [[achievement]]
+id = "playtime_100h"
+name = "fortnite-playtime_100h-name"
+description = "fortnite-playtime_100h-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "total", stat = "minutes_played", target = 6000 }
+
+[[achievement]]
+id = "playtime_250h"
+name = "fortnite-playtime_250h-name"
+description = "fortnite-playtime_250h-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "minutes_played", target = 15000 }
+
+[[achievement]]
+id = "outlived_10000"
+name = "fortnite-outlived_10000-name"
+description = "fortnite-outlived_10000-desc"
+tier = "silver"
+pack = "career"
+condition = { type = "total", stat = "players_outlived", target = 10000 }
+
+[[achievement]]
+id = "outlived_100000"
+name = "fortnite-outlived_100000-name"
+description = "fortnite-outlived_100000-desc"
+tier = "gold"
+pack = "career"
+condition = { type = "total", stat = "players_outlived", target = 100000 }
+
+[[achievement]]
 id = "duo_win"
 name = "fortnite-duo_win-name"
 description = "fortnite-duo_win-desc"
 tier = "bronze"
 pack = "career"
 condition = { type = "total", mode = "duo", stat = "wins", target = 1 }
+
+[[achievement]]
+id = "trio_win"
+name = "fortnite-trio_win-name"
+description = "fortnite-trio_win-desc"
+tier = "bronze"
+pack = "career"
+condition = { type = "total", mode = "trio", stat = "wins", target = 1 }
 
 [[achievement]]
 id = "squad_win"
@@ -116,14 +259,6 @@ pack = "career"
 condition = { type = "total", mode = "ltm", stat = "wins", target = 1 }
 
 [[achievement]]
-id = "outlived_10000"
-name = "fortnite-outlived_10000-name"
-description = "fortnite-outlived_10000-desc"
-tier = "silver"
-pack = "career"
-condition = { type = "total", stat = "players_outlived", target = 10000 }
-
-[[achievement]]
 id = "squad_podium_25"
 name = "fortnite-squad_podium_25-name"
 description = "fortnite-squad_podium_25-desc"
@@ -132,156 +267,12 @@ pack = "career"
 condition = { type = "total", mode = "squad", stat = "top3", target = 25 }
 
 [[achievement]]
-id = "match_kills_15"
-name = "fortnite-match_kills_15-name"
-description = "fortnite-match_kills_15-desc"
-tier = "gold"
-pack = "career"
-condition = { type = "match", all = [{ stat = "kills", gte = 15 }] }
-
-[[achievement]]
-id = "first_down"
-name = "fortnite-first_down-name"
-description = "fortnite-first_down-desc"
+id = "battle_pass_50"
+name = "fortnite-battle_pass_50-name"
+description = "fortnite-battle_pass_50-desc"
 tier = "bronze"
 pack = "career"
-hidden = true
-condition = { type = "match", all = [{ stat = "deaths", eq = 1 }, { stat = "players_outlived", eq = 0 }] }
-
-[[achievement]]
-id = "platinum"
-name = "fortnite-platinum-name"
-description = "fortnite-platinum-desc"
-tier = "platinum"
-
-# Paquete "replays": datos de las repeticiones de PC (Ajustes > Juego > Grabar
-# repeticiones), en el modo "replay". No cuenta para el platino.
-
-[[achievement]]
-id = "demolisher"
-name = "fortnite-demolisher-name"
-description = "fortnite-demolisher-desc"
-tier = "gold"
-pack = "replays"
-condition = { type = "match", mode = "replay", all = [{ stat = "damage", gte = 1000 }] }
-
-[[achievement]]
-id = "guardian_angel"
-name = "fortnite-guardian_angel-name"
-description = "fortnite-guardian_angel-desc"
-tier = "silver"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "revives", target = 25 }
-
-[[achievement]]
-id = "marathoner"
-name = "fortnite-marathoner-name"
-description = "fortnite-marathoner-desc"
-tier = "silver"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "distance_m", target = 100000 }
-
-[[achievement]]
-id = "lumberjack"
-name = "fortnite-lumberjack-name"
-description = "fortnite-lumberjack-desc"
-tier = "bronze"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "materials_gathered", target = 100000 }
-
-[[achievement]]
-id = "architect"
-name = "fortnite-architect-name"
-description = "fortnite-architect-desc"
-tier = "silver"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "materials_used", target = 50000 }
-
-[[achievement]]
-id = "hawkeye"
-name = "fortnite-hawkeye-name"
-description = "fortnite-hawkeye-desc"
-tier = "gold"
-pack = "replays"
-condition = { type = "match", mode = "replay", all = [{ stat = "accuracy", gte = 50 }, { stat = "eliminations", gte = 5 }] }
-
-[[achievement]]
-id = "untouchable"
-name = "fortnite-untouchable-name"
-description = "fortnite-untouchable-desc"
-tier = "gold"
-hidden = true
-pack = "replays"
-condition = { type = "match", mode = "replay", all = [{ stat = "wins", eq = 1 }, { stat = "damage_taken", eq = 0 }] }
-
-# Más logros (2026-11-03). Repeticiones: derribos y distancia de cada eliminación salen de los
-# eventos playerElim; el daño a estructuras incluye objetos del mapa. Trayectoria (API): nivel
-# del pase de batalla de la temporada (condición "reach", el valor actual) y victorias por
-# dispositivo (modos input_*).
-
-[[achievement]]
-id = "knocks_100"
-name = "fortnite-knocks_100-name"
-description = "fortnite-knocks_100-desc"
-tier = "bronze"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "knocks", target = 100 }
-
-[[achievement]]
-id = "long_range_25"
-name = "fortnite-long_range_25-name"
-description = "fortnite-long_range_25-desc"
-tier = "silver"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "long_range_eliminations", target = 25 }
-
-[[achievement]]
-id = "long_shot"
-name = "fortnite-long_shot-name"
-description = "fortnite-long_shot-desc"
-tier = "gold"
-pack = "replays"
-condition = { type = "match", mode = "replay", all = [{ stat = "longest_elimination_m", gte = 200 }] }
-
-[[achievement]]
-id = "wrecking_ball"
-name = "fortnite-wrecking_ball-name"
-description = "fortnite-wrecking_ball-desc"
-tier = "silver"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "structure_damage", target = 50000 }
-
-[[achievement]]
-id = "pyro"
-name = "fortnite-pyro-name"
-description = "fortnite-pyro-desc"
-tier = "bronze"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "other_damage", target = 5000 }
-
-[[achievement]]
-id = "team_player"
-name = "fortnite-team_player-name"
-description = "fortnite-team_player-desc"
-tier = "silver"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "assists", target = 50 }
-
-[[achievement]]
-id = "explorer"
-name = "fortnite-explorer-name"
-description = "fortnite-explorer-desc"
-tier = "gold"
-pack = "replays"
-condition = { type = "match", mode = "replay", all = [{ stat = "distance_m", gte = 5000 }] }
-
-[[achievement]]
-id = "globetrotter"
-name = "fortnite-globetrotter-name"
-description = "fortnite-globetrotter-desc"
-tier = "gold"
-pack = "replays"
-condition = { type = "total", mode = "replay", stat = "distance_m", target = 500000 }
+condition = { type = "reach", mode = "battlepass", stat = "level", target = 50 }
 
 [[achievement]]
 id = "battle_pass_100"
@@ -300,11 +291,29 @@ pack = "career"
 condition = { type = "reach", mode = "battlepass", stat = "level", target = 200 }
 
 [[achievement]]
+id = "first_down"
+name = "fortnite-first_down-name"
+description = "fortnite-first_down-desc"
+tier = "bronze"
+hidden = true
+pack = "career"
+condition = { type = "match", all = [{ stat = "deaths", eq = 1 }, { stat = "players_outlived", eq = 0 }] }
+
+[[achievement]]
+id = "career_platinum"
+name = "fortnite-career_platinum-name"
+description = "fortnite-career_platinum-desc"
+tier = "platinum"
+pack = "career"
+
+# Paquete "devices": victorias por dispositivo (API). Sin platino: nadie juega con todos.
+
+[[achievement]]
 id = "gamepad_win"
 name = "fortnite-gamepad_win-name"
 description = "fortnite-gamepad_win-desc"
 tier = "bronze"
-pack = "career"
+pack = "devices"
 condition = { type = "total", mode = "input_gamepad", stat = "wins", target = 1 }
 
 [[achievement]]
@@ -312,7 +321,7 @@ id = "keyboard_win"
 name = "fortnite-keyboard_win-name"
 description = "fortnite-keyboard_win-desc"
 tier = "bronze"
-pack = "career"
+pack = "devices"
 condition = { type = "total", mode = "input_keyboardmouse", stat = "wins", target = 1 }
 
 [[achievement]]
@@ -321,106 +330,420 @@ name = "fortnite-touch_win-name"
 description = "fortnite-touch_win-desc"
 tier = "bronze"
 hidden = true
-pack = "career"
+pack = "devices"
 condition = { type = "total", mode = "input_touch", stat = "wins", target = 1 }
 
+# Paquete "combat": daño, derribos, eliminaciones y apoyo. Repeticiones de PC (Ajustes > Juego > Grabar repeticiones), en el modo "replay".
+
 [[achievement]]
-id = "playtime_100h"
-name = "fortnite-playtime_100h-name"
-description = "fortnite-playtime_100h-desc"
+id = "damage_10000"
+name = "fortnite-damage_10000-name"
+description = "fortnite-damage_10000-desc"
+tier = "bronze"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "damage", target = 10000 }
+
+[[achievement]]
+id = "damage_50000"
+name = "fortnite-damage_50000-name"
+description = "fortnite-damage_50000-desc"
 tier = "silver"
-pack = "career"
-condition = { type = "total", stat = "minutes_played", target = 6000 }
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "damage", target = 50000 }
 
 [[achievement]]
-id = "matches_1000"
-name = "fortnite-matches_1000-name"
-description = "fortnite-matches_1000-desc"
+id = "damage_250000"
+name = "fortnite-damage_250000-name"
+description = "fortnite-damage_250000-desc"
 tier = "gold"
-pack = "career"
-condition = { type = "total", stat = "matches", target = 1000 }
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "damage", target = 250000 }
 
 [[achievement]]
-id = "outlived_100000"
-name = "fortnite-outlived_100000-name"
-description = "fortnite-outlived_100000-desc"
+id = "damage_1000000"
+name = "fortnite-damage_1000000-name"
+description = "fortnite-damage_1000000-desc"
 tier = "gold"
-pack = "career"
-condition = { type = "total", stat = "players_outlived", target = 100000 }
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "damage", target = 1000000 }
 
-# Por arma (repeticiones): eliminaciones del jugador según la causa de muerte de cada evento
-# playerElim (ver weapon_group en crates/trackers/fortnite/src/replay.rs). Los derribos no cuentan.
+[[achievement]]
+id = "match_damage_500"
+name = "fortnite-match_damage_500-name"
+description = "fortnite-match_damage_500-desc"
+tier = "bronze"
+pack = "combat"
+condition = { type = "match", mode = "replay", all = [{ stat = "damage", gte = 500 }] }
+
+[[achievement]]
+id = "demolisher"
+name = "fortnite-demolisher-name"
+description = "fortnite-demolisher-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "match", mode = "replay", all = [{ stat = "damage", gte = 1000 }] }
+
+[[achievement]]
+id = "match_damage_2000"
+name = "fortnite-match_damage_2000-name"
+description = "fortnite-match_damage_2000-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "match", mode = "replay", all = [{ stat = "damage", gte = 2000 }] }
+
+[[achievement]]
+id = "knocks_25"
+name = "fortnite-knocks_25-name"
+description = "fortnite-knocks_25-desc"
+tier = "bronze"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "knocks", target = 25 }
+
+[[achievement]]
+id = "knocks_100"
+name = "fortnite-knocks_100-name"
+description = "fortnite-knocks_100-desc"
+tier = "bronze"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "knocks", target = 100 }
+
+[[achievement]]
+id = "knocks_500"
+name = "fortnite-knocks_500-name"
+description = "fortnite-knocks_500-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "knocks", target = 500 }
+
+[[achievement]]
+id = "players_50"
+name = "fortnite-players_50-name"
+description = "fortnite-players_50-desc"
+tier = "silver"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "eliminations_players", target = 50 }
+
+[[achievement]]
+id = "players_250"
+name = "fortnite-players_250-name"
+description = "fortnite-players_250-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "eliminations_players", target = 250 }
+
+[[achievement]]
+id = "first_blood_1"
+name = "fortnite-first_blood_1-name"
+description = "fortnite-first_blood_1-desc"
+tier = "bronze"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "first_blood", target = 1 }
+
+[[achievement]]
+id = "first_blood_10"
+name = "fortnite-first_blood_10-name"
+description = "fortnite-first_blood_10-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "first_blood", target = 10 }
+
+[[achievement]]
+id = "long_range_25"
+name = "fortnite-long_range_25-name"
+description = "fortnite-long_range_25-desc"
+tier = "silver"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "long_range_eliminations", target = 25 }
+
+[[achievement]]
+id = "long_range_100"
+name = "fortnite-long_range_100-name"
+description = "fortnite-long_range_100-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "long_range_eliminations", target = 100 }
+
+[[achievement]]
+id = "long_shot"
+name = "fortnite-long_shot-name"
+description = "fortnite-long_shot-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "match", mode = "replay", all = [{ stat = "longest_elimination_m", gte = 200 }] }
+
+[[achievement]]
+id = "hawkeye"
+name = "fortnite-hawkeye-name"
+description = "fortnite-hawkeye-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "match", mode = "replay", all = [{ stat = "accuracy", gte = 50 }, { stat = "eliminations", gte = 5 }] }
+
+[[achievement]]
+id = "assists_10"
+name = "fortnite-assists_10-name"
+description = "fortnite-assists_10-desc"
+tier = "bronze"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "assists", target = 10 }
+
+[[achievement]]
+id = "team_player"
+name = "fortnite-team_player-name"
+description = "fortnite-team_player-desc"
+tier = "silver"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "assists", target = 50 }
+
+[[achievement]]
+id = "assists_250"
+name = "fortnite-assists_250-name"
+description = "fortnite-assists_250-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "assists", target = 250 }
+
+[[achievement]]
+id = "revives_5"
+name = "fortnite-revives_5-name"
+description = "fortnite-revives_5-desc"
+tier = "bronze"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "revives", target = 5 }
+
+[[achievement]]
+id = "guardian_angel"
+name = "fortnite-guardian_angel-name"
+description = "fortnite-guardian_angel-desc"
+tier = "silver"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "revives", target = 25 }
+
+[[achievement]]
+id = "revives_100"
+name = "fortnite-revives_100-name"
+description = "fortnite-revives_100-desc"
+tier = "gold"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "revives", target = 100 }
+
+[[achievement]]
+id = "damage_taken_50000"
+name = "fortnite-damage_taken_50000-name"
+description = "fortnite-damage_taken_50000-desc"
+tier = "silver"
+pack = "combat"
+condition = { type = "total", mode = "replay", stat = "damage_taken", target = 50000 }
+
+[[achievement]]
+id = "untouchable"
+name = "fortnite-untouchable-name"
+description = "fortnite-untouchable-desc"
+tier = "gold"
+hidden = true
+pack = "combat"
+condition = { type = "match", mode = "replay", all = [{ stat = "wins", eq = 1 }, { stat = "damage_taken", eq = 0 }] }
+
+[[achievement]]
+id = "combat_platinum"
+name = "fortnite-combat_platinum-name"
+description = "fortnite-combat_platinum-desc"
+tier = "platinum"
+pack = "combat"
+
+# Paquete "arsenal": eliminaciones (no derribos) según la causa de muerte de cada evento playerElim
+# (ver weapon_group en crates/trackers/fortnite/src/replay.rs). Repeticiones de PC (Ajustes > Juego > Grabar repeticiones), en el modo "replay".
+
+[[achievement]]
+id = "pistol_10"
+name = "fortnite-pistol_10-name"
+description = "fortnite-pistol_10-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_pistol", target = 10 }
 
 [[achievement]]
 id = "pistol_50"
 name = "fortnite-pistol_50-name"
 description = "fortnite-pistol_50-desc"
 tier = "bronze"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_pistol", target = 50 }
+
+[[achievement]]
+id = "shotgun_25"
+name = "fortnite-shotgun_25-name"
+description = "fortnite-shotgun_25-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_shotgun", target = 25 }
 
 [[achievement]]
 id = "shotgun_100"
 name = "fortnite-shotgun_100-name"
 description = "fortnite-shotgun_100-desc"
 tier = "silver"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_shotgun", target = 100 }
+
+[[achievement]]
+id = "shotgun_500"
+name = "fortnite-shotgun_500-name"
+description = "fortnite-shotgun_500-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_shotgun", target = 500 }
+
+[[achievement]]
+id = "rifle_25"
+name = "fortnite-rifle_25-name"
+description = "fortnite-rifle_25-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_rifle", target = 25 }
 
 [[achievement]]
 id = "rifle_100"
 name = "fortnite-rifle_100-name"
 description = "fortnite-rifle_100-desc"
 tier = "silver"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_rifle", target = 100 }
+
+[[achievement]]
+id = "rifle_500"
+name = "fortnite-rifle_500-name"
+description = "fortnite-rifle_500-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_rifle", target = 500 }
+
+[[achievement]]
+id = "smg_25"
+name = "fortnite-smg_25-name"
+description = "fortnite-smg_25-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_smg", target = 25 }
 
 [[achievement]]
 id = "smg_100"
 name = "fortnite-smg_100-name"
 description = "fortnite-smg_100-desc"
 tier = "silver"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_smg", target = 100 }
+
+[[achievement]]
+id = "smg_500"
+name = "fortnite-smg_500-name"
+description = "fortnite-smg_500-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_smg", target = 500 }
+
+[[achievement]]
+id = "sniper_5"
+name = "fortnite-sniper_5-name"
+description = "fortnite-sniper_5-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_sniper", target = 5 }
 
 [[achievement]]
 id = "sniper_25"
 name = "fortnite-sniper_25-name"
 description = "fortnite-sniper_25-desc"
 tier = "gold"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_sniper", target = 25 }
+
+[[achievement]]
+id = "sniper_100"
+name = "fortnite-sniper_100-name"
+description = "fortnite-sniper_100-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_sniper", target = 100 }
+
+[[achievement]]
+id = "explosive_5"
+name = "fortnite-explosive_5-name"
+description = "fortnite-explosive_5-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_explosive", target = 5 }
 
 [[achievement]]
 id = "explosive_25"
 name = "fortnite-explosive_25-name"
 description = "fortnite-explosive_25-desc"
 tier = "silver"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_explosive", target = 25 }
+
+[[achievement]]
+id = "explosive_100"
+name = "fortnite-explosive_100-name"
+description = "fortnite-explosive_100-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_explosive", target = 100 }
+
+[[achievement]]
+id = "heavy_5"
+name = "fortnite-heavy_5-name"
+description = "fortnite-heavy_5-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_heavy", target = 5 }
 
 [[achievement]]
 id = "heavy_25"
 name = "fortnite-heavy_25-name"
 description = "fortnite-heavy_25-desc"
 tier = "silver"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_heavy", target = 25 }
+
+[[achievement]]
+id = "heavy_100"
+name = "fortnite-heavy_100-name"
+description = "fortnite-heavy_100-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_heavy", target = 100 }
 
 [[achievement]]
 id = "bow_10"
 name = "fortnite-bow_10-name"
 description = "fortnite-bow_10-desc"
 tier = "silver"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_bow", target = 10 }
+
+[[achievement]]
+id = "bow_50"
+name = "fortnite-bow_50-name"
+description = "fortnite-bow_50-desc"
+tier = "gold"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_bow", target = 50 }
+
+[[achievement]]
+id = "melee_1"
+name = "fortnite-melee_1-name"
+description = "fortnite-melee_1-desc"
+tier = "bronze"
+pack = "arsenal"
+condition = { type = "total", mode = "replay", stat = "eliminations_melee", target = 1 }
 
 [[achievement]]
 id = "melee_10"
 name = "fortnite-melee_10-name"
 description = "fortnite-melee_10-desc"
 tier = "gold"
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_melee", target = 10 }
 
 [[achievement]]
@@ -429,5 +752,191 @@ name = "fortnite-vehicle_5-name"
 description = "fortnite-vehicle_5-desc"
 tier = "gold"
 hidden = true
-pack = "replays"
+pack = "arsenal"
 condition = { type = "total", mode = "replay", stat = "eliminations_vehicle", target = 5 }
+
+[[achievement]]
+id = "arsenal_platinum"
+name = "fortnite-arsenal_platinum-name"
+description = "fortnite-arsenal_platinum-desc"
+tier = "platinum"
+pack = "arsenal"
+
+# Paquete "explorer": distancia recorrida. Repeticiones de PC (Ajustes > Juego > Grabar repeticiones), en el modo "replay".
+
+[[achievement]]
+id = "distance_10000"
+name = "fortnite-distance_10000-name"
+description = "fortnite-distance_10000-desc"
+tier = "bronze"
+pack = "explorer"
+condition = { type = "total", mode = "replay", stat = "distance_m", target = 10000 }
+
+[[achievement]]
+id = "marathoner"
+name = "fortnite-marathoner-name"
+description = "fortnite-marathoner-desc"
+tier = "silver"
+pack = "explorer"
+condition = { type = "total", mode = "replay", stat = "distance_m", target = 100000 }
+
+[[achievement]]
+id = "globetrotter"
+name = "fortnite-globetrotter-name"
+description = "fortnite-globetrotter-desc"
+tier = "gold"
+pack = "explorer"
+condition = { type = "total", mode = "replay", stat = "distance_m", target = 500000 }
+
+[[achievement]]
+id = "distance_1000000"
+name = "fortnite-distance_1000000-name"
+description = "fortnite-distance_1000000-desc"
+tier = "gold"
+pack = "explorer"
+condition = { type = "total", mode = "replay", stat = "distance_m", target = 1000000 }
+
+[[achievement]]
+id = "match_distance_3000"
+name = "fortnite-match_distance_3000-name"
+description = "fortnite-match_distance_3000-desc"
+tier = "silver"
+pack = "explorer"
+condition = { type = "match", mode = "replay", all = [{ stat = "distance_m", gte = 3000 }] }
+
+[[achievement]]
+id = "explorer"
+name = "fortnite-explorer-name"
+description = "fortnite-explorer-desc"
+tier = "gold"
+pack = "explorer"
+condition = { type = "match", mode = "replay", all = [{ stat = "distance_m", gte = 5000 }] }
+
+[[achievement]]
+id = "explorer_platinum"
+name = "fortnite-explorer_platinum-name"
+description = "fortnite-explorer_platinum-desc"
+tier = "platinum"
+pack = "explorer"
+
+# Paquete "destruction": daño a estructuras y objetos del mapa, y daño de otras fuentes. Repeticiones de PC (Ajustes > Juego > Grabar repeticiones), en el modo "replay".
+
+[[achievement]]
+id = "structure_10000"
+name = "fortnite-structure_10000-name"
+description = "fortnite-structure_10000-desc"
+tier = "bronze"
+pack = "destruction"
+condition = { type = "total", mode = "replay", stat = "structure_damage", target = 10000 }
+
+[[achievement]]
+id = "wrecking_ball"
+name = "fortnite-wrecking_ball-name"
+description = "fortnite-wrecking_ball-desc"
+tier = "silver"
+pack = "destruction"
+condition = { type = "total", mode = "replay", stat = "structure_damage", target = 50000 }
+
+[[achievement]]
+id = "structure_250000"
+name = "fortnite-structure_250000-name"
+description = "fortnite-structure_250000-desc"
+tier = "gold"
+pack = "destruction"
+condition = { type = "total", mode = "replay", stat = "structure_damage", target = 250000 }
+
+[[achievement]]
+id = "structure_1000000"
+name = "fortnite-structure_1000000-name"
+description = "fortnite-structure_1000000-desc"
+tier = "gold"
+pack = "destruction"
+condition = { type = "total", mode = "replay", stat = "structure_damage", target = 1000000 }
+
+[[achievement]]
+id = "match_structure_5000"
+name = "fortnite-match_structure_5000-name"
+description = "fortnite-match_structure_5000-desc"
+tier = "silver"
+pack = "destruction"
+condition = { type = "match", mode = "replay", all = [{ stat = "structure_damage", gte = 5000 }] }
+
+[[achievement]]
+id = "pyro"
+name = "fortnite-pyro-name"
+description = "fortnite-pyro-desc"
+tier = "bronze"
+pack = "destruction"
+condition = { type = "total", mode = "replay", stat = "other_damage", target = 5000 }
+
+[[achievement]]
+id = "other_damage_25000"
+name = "fortnite-other_damage_25000-name"
+description = "fortnite-other_damage_25000-desc"
+tier = "silver"
+pack = "destruction"
+condition = { type = "total", mode = "replay", stat = "other_damage", target = 25000 }
+
+[[achievement]]
+id = "destruction_platinum"
+name = "fortnite-destruction_platinum-name"
+description = "fortnite-destruction_platinum-desc"
+tier = "platinum"
+pack = "destruction"
+
+# Paquete "builder": materiales recogidos y usados (solo en partidas con construcción). Repeticiones de PC (Ajustes > Juego > Grabar repeticiones), en el modo "replay".
+
+[[achievement]]
+id = "gathered_10000"
+name = "fortnite-gathered_10000-name"
+description = "fortnite-gathered_10000-desc"
+tier = "bronze"
+pack = "builder"
+condition = { type = "total", mode = "replay", stat = "materials_gathered", target = 10000 }
+
+[[achievement]]
+id = "lumberjack"
+name = "fortnite-lumberjack-name"
+description = "fortnite-lumberjack-desc"
+tier = "bronze"
+pack = "builder"
+condition = { type = "total", mode = "replay", stat = "materials_gathered", target = 100000 }
+
+[[achievement]]
+id = "gathered_500000"
+name = "fortnite-gathered_500000-name"
+description = "fortnite-gathered_500000-desc"
+tier = "gold"
+pack = "builder"
+condition = { type = "total", mode = "replay", stat = "materials_gathered", target = 500000 }
+
+[[achievement]]
+id = "built_10000"
+name = "fortnite-built_10000-name"
+description = "fortnite-built_10000-desc"
+tier = "bronze"
+pack = "builder"
+condition = { type = "total", mode = "replay", stat = "materials_used", target = 10000 }
+
+[[achievement]]
+id = "architect"
+name = "fortnite-architect-name"
+description = "fortnite-architect-desc"
+tier = "silver"
+pack = "builder"
+condition = { type = "total", mode = "replay", stat = "materials_used", target = 50000 }
+
+[[achievement]]
+id = "built_250000"
+name = "fortnite-built_250000-name"
+description = "fortnite-built_250000-desc"
+tier = "gold"
+pack = "builder"
+condition = { type = "total", mode = "replay", stat = "materials_used", target = 250000 }
+
+[[achievement]]
+id = "builder_platinum"
+name = "fortnite-builder_platinum-name"
+description = "fortnite-builder_platinum-desc"
+tier = "platinum"
+pack = "builder"

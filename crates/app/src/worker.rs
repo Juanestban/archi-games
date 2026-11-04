@@ -1,6 +1,7 @@
 //! The tracker thread: a tokio runtime that watches each game's process,
 //! polls its API when due (or, for CS2, listens on localhost for what the game
-//! sends) and stores unlocks. It owns its own database connection; the UI talks
+//! sends; for League of Legends, asks the game's own local server during a match)
+//! and stores unlocks. It owns its own database connection; the UI talks
 //! to it through [`Command`]s and gets [`Event`]s back, each one waking the UI
 //! with `request_repaint`.
 
@@ -15,6 +16,8 @@ use archi_core::{AccountInfo, GameDefinition, GameProgress, GameTracker, PollPol
 use archi_cs2::gsi::{self, MatchTracker};
 use archi_cs2::{GSI_PORT, install as cs2_install};
 use archi_fortnite::FortniteTracker;
+use archi_lol::LiveClient;
+use archi_lol::live::{GameData, MatchTracker as LolMatches};
 use archi_storage::{LinkedAccount, ReplayFile, Storage, Timestamp, Unlock, unix_now};
 use eframe::egui;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
@@ -126,7 +129,8 @@ pub struct Status {
   pub integration: Integration,
 }
 
-/// CS2's Game State Integration, as Settings shows it.
+/// A game's local integration (CS2's Game State Integration, League's Live Client Data), as
+/// Settings shows it. League's is always on: `Waiting` until a match answers.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Integration {
   #[default]
@@ -202,9 +206,10 @@ struct Game {
   api_key: Option<&'static str>,
 }
 
-const GAMES: [Game; 2] = [
+const GAMES: [Game; 3] = [
   Game { id: archi_fortnite::GAME_ID, process_names: archi_fortnite::PROCESS_NAMES, api_key: Some(archi_fortnite::API_KEY_SETTING) },
   Game { id: archi_cs2::GAME_ID, process_names: archi_cs2::PROCESS_NAMES, api_key: None },
+  Game { id: archi_lol::GAME_ID, process_names: archi_lol::PROCESS_NAMES, api_key: None },
 ];
 
 /// `GameTracker` isn't object-safe (async methods), so the API trackers are an enum.
@@ -349,6 +354,9 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
         None
       }
     };
+    if game.id == archi_lol::GAME_ID {
+      status.integration = Integration::Waiting;
+    }
     events.status(game.id, &status);
     slots.push(Slot { game, definition, tracker, session, poller: Poller::new(PollPolicy::default()), force_poll: false, status });
   }
@@ -368,6 +376,10 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
     gsi = listen_gsi(token, &gsi_tx, &mut slot.status).await;
     events.status(slot.game.id, &slot.status);
   }
+
+  // League of Legends: the game's own server, asked only while a match runs.
+  let lol_client = LiveClient::new().ok();
+  let mut lol_matches = LolMatches::default();
 
   let updater = Updater::new().ok();
   let install = Install::detect();
@@ -397,6 +409,24 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
         }
       }
     }
+    if let Some(slot) = slots.iter_mut().find(|slot| slot.game.id == archi_lol::GAME_ID) {
+      let data = match (&lol_client, slot.status.game_running) {
+        (Some(client), true) => client.fetch().await.ok(),
+        _ => None,
+      };
+      if !slot.status.game_running {
+        lol_matches.reset();
+      }
+      let integration = if data.is_some() { Integration::Receiving } else { Integration::Waiting };
+      if integration != slot.status.integration {
+        slot.status.integration = integration;
+        events.status(slot.game.id, &slot.status);
+      }
+      if let Some(data) = data {
+        on_live_data(&storage, catalog, slot, &mut lol_matches, &data, events);
+      }
+    }
+
     // ADR 0001: replays only while the game is closed.
     if let Some(slot) = fortnite(&mut slots)
       && !slot.status.game_running
@@ -797,6 +827,45 @@ fn on_gsi_update<'a>(storage: &'a Storage, catalog: &'a Catalog, slot: &mut Slot
   let Some(done) = server.matches.update(&payload) else { return };
   let Some(session) = &mut slot.session else { return };
   if storage.replay_seen(slot.game.id, &done.id, 0).unwrap_or(true) {
+    return;
+  }
+  match session.record_replay(ReplayFile { file_name: done.id, file_size: 0, stats: Some(done.stats) }, now) {
+    Ok(unlocks) => {
+      slot.status.last_poll = Some(now);
+      if !unlocks.is_empty() {
+        events.send(Event::Unlocked(unlocks));
+      }
+      events.send(Event::Progress(slot.game.id.into(), session.progress().clone()));
+    }
+    Err(_) => slot.status.problem = Some(Problem::Storage),
+  }
+  events.status(slot.game.id, &slot.status);
+}
+
+/// One answer from League's server during a match: links the player's account the first time
+/// and stores the match when it ends.
+fn on_live_data<'a>(storage: &'a Storage, catalog: &'a Catalog, slot: &mut Slot<'a>, matches: &mut LolMatches, data: &GameData, events: &Events) {
+  let now = unix_now();
+  // Whoever plays on this PC is the account: linked (or switched) in their first match.
+  if let Some(account_id) = data.account_id()
+    && slot.session.as_ref().is_none_or(|session| session.account_id() != account_id)
+  {
+    let account = LinkedAccount { game_id: slot.game.id.into(), account_id: account_id.into(), display_name: account_id.into(), linked_at: now };
+    if storage.link_account(&account).is_err() {
+      slot.status.problem = Some(Problem::Storage);
+      return events.status(slot.game.id, &slot.status);
+    }
+    slot.session = start(storage, catalog, slot.definition, &account.account_id, &mut slot.status, events);
+    if let Some(session) = &mut slot.session
+      && session.start_from_zero(now).is_err()
+    {
+      slot.status.problem = Some(Problem::Storage);
+    }
+    events.send(Event::Linked(slot.game.id.into()));
+  }
+  let Some(done) = matches.update(data, u64::try_from(now).unwrap_or(0)) else { return };
+  let Some(session) = &mut slot.session else { return };
+  if session.account_id() != done.account_id || storage.replay_seen(slot.game.id, &done.id, 0).unwrap_or(true) {
     return;
   }
   match session.record_replay(ReplayFile { file_name: done.id, file_size: 0, stats: Some(done.stats) }, now) {

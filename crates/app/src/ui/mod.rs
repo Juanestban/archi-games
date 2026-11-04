@@ -120,6 +120,8 @@ pub struct ArchiApp {
   shown_game: String,
   state_filter: StateFilter,
   tier_filter: Option<Tier>,
+  /// The game it was chosen in, and the pack (`None`: the base game). Unset shows every part.
+  pack_filter: Option<(String, Option<String>)>,
   /// Text search over the shown names and descriptions.
   achievement_query: String,
   /// Each row's height the last time it was laid out, at `row_width`: rows out of view only
@@ -185,6 +187,7 @@ impl ArchiApp {
       shown_game: archi_fortnite::GAME_ID.into(),
       state_filter: StateFilter::All,
       tier_filter: None,
+      pack_filter: None,
       achievement_query: String::new(),
       row_heights: HashMap::new(),
       row_width: 0.0,
@@ -687,8 +690,10 @@ impl ArchiApp {
             let color = theme::tier_color(achievement.tier);
             ui.label(RichText::new(self.tr_args("ui-xp-reward", &[("xp", xp.into())])).font(theme::mono(13.0)).color(color));
             widgets::hud(ui, &self.tr(theme::tier_token(achievement.tier)), theme::fade(color, 0.75));
-            if achievement.pack.is_some() {
-              widgets::hud(ui, &self.tr("ui-pack"), theme::FAINT);
+            if let Some(pack) = &achievement.pack
+              && let Some(definition) = self.catalog.get(game_id)
+            {
+              widgets::hud(ui, &self.tr(&definition.pack_token(pack)), theme::FAINT);
             }
           });
         });

@@ -1,15 +1,16 @@
 # Archi Games
 
 Plataforma de escritorio de logros estilo PlayStation para juegos que no tienen
-sistema de logros (o con logros propios distintos): Fortnite y Counter-Strike 2.
-Logros propios, platino por juego,
+sistema de logros (o con logros propios distintos): Fortnite, Counter-Strike 2 y
+League of Legends. Logros propios, platino por juego y por paquete,
 nivel de cuenta y metalogros de la plataforma. Rust nativo con egui.
 
 ## Reglas inquebrantables
 
 La app **nunca toca los procesos de los juegos**: no lee memoria, no inyecta
 código y no hookea nada. Los datos llegan de APIs públicas, de las repeticiones
-de Fortnite y de lo que el propio CS2 envía con su integración oficial. Detalles en
+de Fortnite, de lo que el propio CS2 envía con su integración oficial y de los
+datos de la partida que League of Legends ofrece en el propio equipo. Detalles en
 [ADR 0001](docs/adr/0001-sin-interaccion-con-procesos-de-juegos.md).
 
 ## Estructura
@@ -20,6 +21,7 @@ crates/core               motor de logros: definiciones, evaluación, XP, nivele
 crates/storage            SQLite: lecturas, desbloqueos, cuentas y ajustes
 crates/trackers/fortnite  cliente de fortnite-api.com y lector de repeticiones
 crates/trackers/cs2       Game State Integration de CS2: datos de la partida y el .cfg
+crates/trackers/lol       Live Client Data API de League of Legends: partidas terminadas
 crates/app                la app: interfaz egui, textos (locales/) e hilo del tracker
 games/<id>/   achievements.toml + locales/{es,en}.ftl de cada juego
 docs/adr/     decisiones de arquitectura
@@ -62,9 +64,11 @@ partidas locales (repeticiones, Game State Integration): empiezan en 0. En los
 demás, una estadística que aparece después de la vinculación (porque una versión
 nueva la lee) cuenta desde ese momento. Los
 comparadores son `eq`, `gte` y `lte`. Otros campos: `tier`
-(bronze/silver/gold/platinum), `hidden` y `pack`, para expansiones que no
-cuentan para el platino. El platino no lleva condición: se desbloquea al
-completar el juego base.
+(bronze/silver/gold/platinum), `hidden` y `pack` (paquete; su nombre es el
+token `<juego>-pack-<pack>`). Un platino no lleva condición: el del juego base
+llega al completar el juego base, y el de un paquete (un platino con `pack`) al
+completar ese paquete. Cada parte tiene como mucho uno; un paquete puede no
+tener ninguno.
 
 ```
 cargo test --workspace
@@ -110,6 +114,12 @@ aparece en **Perfil** e **Historial**.
   **Activar**: se copia `gamestate_integration_archigames.cfg` en la carpeta
   `cfg` de CS2 y la app escucha en `127.0.0.1:43117`. Abre (o reinicia) CS2 y
   juega: la cuenta se vincula sola y cada partida cuenta al terminar.
+- **League of Legends:** nada que configurar. Durante cada partida la app lee
+  `https://127.0.0.1:2999/liveclientdata/allgamedata`, que sirve el propio
+  juego; la cuenta (tu Riot ID) se vincula sola y la partida cuenta al acabar.
+  No cuentan la herramienta de práctica, las partidas con bots ni los remakes
+  (menos de 5 minutos). Para comprobarlo con una partida en curso:
+  `cargo test -p archi-lol reads_a_live_match -- --ignored --nocapture`.
 
 Para comprobar el lector de repeticiones con archivos reales (copias):
 

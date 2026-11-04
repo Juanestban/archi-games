@@ -15,7 +15,7 @@ impl ArchiApp {
     ui.label(theme::heading(self.tr("ui-nav-settings"), 30.0));
     ui.add_space(16.0);
     self.game_picker(ui);
-    if self.settings_game == archi_cs2::GAME_ID {
+    if self.settings_game == archi_cs2::GAME_ID || self.settings_game == archi_lol::GAME_ID {
       self.integration_settings(ui);
     } else {
       self.account_settings(ui);
@@ -198,7 +198,8 @@ impl ArchiApp {
     }
   }
 
-  /// CS2: turning Game State Integration on or off, and what it's doing.
+  /// A game fed locally: what the integration is doing, and (CS2) turning it on or off. League's
+  /// needs no setup, so it has no button.
   fn integration_settings(&mut self, ui: &mut Ui) {
     let game_id = self.settings_game.clone();
     let game = self.game(&game_id);
@@ -211,11 +212,13 @@ impl ArchiApp {
       Integration::Waiting => (self.tr(&format!("{game_id}-integration-waiting")), theme::ACCENT_INK),
       Integration::Receiving => (self.tr(&format!("{game_id}-integration-receiving")), theme::GOOD),
     };
-    let (label, kind) = if integration == Integration::Off {
-      (self.tr(&format!("{game_id}-integration-enable")), widgets::Kind::Primary)
-    } else {
-      (self.tr(&format!("{game_id}-integration-disable")), widgets::Kind::Secondary)
-    };
+    let button = (game_id == archi_cs2::GAME_ID).then(|| {
+      if integration == Integration::Off {
+        (self.tr(&format!("{game_id}-integration-enable")), widgets::Kind::Primary)
+      } else {
+        (self.tr(&format!("{game_id}-integration-disable")), widgets::Kind::Secondary)
+      }
+    });
     let mut clicked = false;
     block(ui, &self.tr(&format!("{game_id}-integration")), |ui| {
       ui.label(theme::muted(help));
@@ -224,8 +227,10 @@ impl ArchiApp {
       if let Some(account) = account {
         ui.label(theme::heading(account, 16.0));
       }
-      ui.add_space(4.0);
-      clicked = widgets::button(ui, &label, kind).clicked();
+      if let Some((label, kind)) = button {
+        ui.add_space(4.0);
+        clicked = widgets::button(ui, &label, kind).clicked();
+      }
     });
     if clicked {
       self.worker.send(Command::SetIntegration { game: game_id, enabled: integration == Integration::Off });
@@ -236,8 +241,8 @@ impl ArchiApp {
     let game_id = self.settings_game.clone();
     let game = self.game(&game_id);
     let (status, linked) = (game.status.clone(), game.account.is_some());
-    // A game fed by the game itself (CS2) isn't polled.
-    let local = game_id == archi_cs2::GAME_ID;
+    // A game fed by the game itself (CS2, League) isn't polled.
+    let local = game_id == archi_cs2::GAME_ID || game_id == archi_lol::GAME_ID;
     let name = self.catalog.get(&game_id).map(|definition| self.tr(&definition.game.name)).unwrap_or_default();
     let running = match (local, status.game_running) {
       (true, true) => self.tr(&format!("{game_id}-running")),
@@ -246,7 +251,11 @@ impl ArchiApp {
       (false, false) => self.tr_args("ui-game-closed", &[("game", name.into()), ("note", self.tr(&format!("{game_id}-closed-note")).into())]),
     };
     let when = status.last_poll.map_or_else(|| self.tr("ui-never"), |at| self.when(at));
-    let last_poll = self.tr_args(if local { "cs2-last-match" } else { "ui-last-poll" }, &[("when", when.into())]);
+    let last_poll = if local {
+      self.tr_args(&format!("{game_id}-last-match"), &[("when", when.into())])
+    } else {
+      self.tr_args("ui-last-poll", &[("when", when.into())])
+    };
     let problem = status.problem.map(|problem| self.tr(&problem.token(&game_id)));
     // Replays are Fortnite's only.
     let replays = (game_id == archi_fortnite::GAME_ID).then(|| {

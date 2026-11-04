@@ -23,9 +23,11 @@ terminarla y actualiza **Estado actual**.
   más de Fortnite (derribos, distancias, pase de batalla, dispositivos…).
   La API ya funciona con la cuenta real (las lecturas siguen sus partidas) y el lector de
   repeticiones está validado con 3 `.replay` reales (la distancia va en centímetros).
-- **Siguiente:** publicar la v0.5.1 (el usuario ya comprobó CS2 de punta a punta; los 3
-  desbloqueos erróneos de dispositivo ya se borraron de su base de datos). Sigue
-  pendiente el hito del paso 3 (un desbloqueo real tras una partida).
+- **Último:** platinos por paquete, Fortnite reorganizado con escalones (116 logros, 7
+  platinos) y League of Legends (59 logros), aún sin publicar.
+- **Siguiente:** el usuario prueba League of Legends con una partida real (o
+  `cargo test -p archi-lol reads_a_live_match -- --ignored --nocapture` durante una partida) y
+  publica la v0.6.0. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-03.
 
 ## Fase 1: versión inicial con Fortnite
@@ -131,6 +133,13 @@ terminarla y actualiza **Estado actual**.
 - [x] Rendimiento de Logros sin paginar: solo se maquetan las filas visibles (54 → 1,9 ms por
   fotograma en `cargo run`, 3,2 → 1,15 ms en release) y dependencias optimizadas en depuración
 - [x] Búsqueda de logros por texto, sin distinguir mayúsculas ni tildes
+- [x] Platino por paquete y filtro por paquete en Logros
+- [x] Fortnite: paquetes por tema (Trayectoria, Dispositivos, Combate, Arsenal, Explorador,
+  Destrucción, Constructor), escalones de progreso y 64 logros nuevos (116 en total, 7 platinos);
+  primera sangre y eliminaciones de jugadores reales desde las repeticiones
+- [x] League of Legends con la Live Client Data API del propio juego: partidas terminadas,
+  59 logros en el juego base y 5 paquetes, todos con platino
+- [ ] Probar League of Legends con una partida real (certificado, eventos y `GameEnd`)
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS
 - [ ] ~~Firmar el ejecutable y el MSI~~: aplazado por decisión del usuario (2026-11-03). Se publica

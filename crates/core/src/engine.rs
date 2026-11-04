@@ -38,7 +38,7 @@ impl GameProgress {
   }
 
   /// Applies a new snapshot and returns the achievements it unlocked, in
-  /// definition order with the platinum always last.
+  /// definition order with the platinums always last.
   pub fn apply<'d>(&mut self, definition: &'d GameDefinition, snapshot: StatSnapshot) -> Vec<&'d AchievementDef> {
     let (Some(baseline), Some(previous)) = (&mut self.baseline, &mut self.last) else {
       self.baseline = Some(snapshot.clone());
@@ -81,12 +81,11 @@ impl GameProgress {
       }
     }
 
-    if let Some(platinum) = definition.platinum()
-      && !self.is_unlocked(&platinum.id)
-      && base_game_complete(definition, &self.unlocked)
-    {
-      self.unlocked.insert(platinum.id.clone());
-      unlocked.push(platinum);
+    for platinum in definition.platinums() {
+      if !self.is_unlocked(&platinum.id) && part_complete(definition, platinum.pack.as_deref(), &self.unlocked) {
+        self.unlocked.insert(platinum.id.clone());
+        unlocked.push(platinum);
+      }
     }
 
     self.last = Some(snapshot);
@@ -113,7 +112,8 @@ fn single_match(delta: &StatSnapshot, mode: &str, predicates: &[Predicate]) -> O
   (delta.get(mode, MATCHES) == 1).then(|| predicates.iter().all(|p| p.matches(delta.get(mode, &p.stat))))
 }
 
-fn base_game_complete(definition: &GameDefinition, unlocked: &BTreeSet<String>) -> bool {
-  let mut base = definition.achievements.iter().filter(|a| a.pack.is_none() && a.tier != Tier::Platinum).peekable();
-  base.peek().is_some() && base.all(|a| unlocked.contains(&a.id))
+/// Every achievement of the base game (`pack` `None`) or of one pack is unlocked.
+fn part_complete(definition: &GameDefinition, pack: Option<&str>, unlocked: &BTreeSet<String>) -> bool {
+  let mut part = definition.achievements.iter().filter(|a| a.pack.as_deref() == pack && a.tier != Tier::Platinum).peekable();
+  part.peek().is_some() && part.all(|a| unlocked.contains(&a.id))
 }

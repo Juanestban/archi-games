@@ -27,18 +27,20 @@ impl Language {
     }
   }
 
-  fn sources(self) -> [&'static str; 4] {
+  fn sources(self) -> [&'static str; 5] {
     match self {
       Self::Es => [
         include_str!("../locales/es.ftl"),
         include_str!("../../../games/fortnite/locales/es.ftl"),
         include_str!("../../../games/cs2/locales/es.ftl"),
+        include_str!("../../../games/lol/locales/es.ftl"),
         include_str!("../../../games/platform/locales/es.ftl"),
       ],
       Self::En => [
         include_str!("../locales/en.ftl"),
         include_str!("../../../games/fortnite/locales/en.ftl"),
         include_str!("../../../games/cs2/locales/en.ftl"),
+        include_str!("../../../games/lol/locales/en.ftl"),
         include_str!("../../../games/platform/locales/en.ftl"),
       ],
     }

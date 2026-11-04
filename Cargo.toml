@@ -12,6 +12,7 @@ repository = "https://github.com/Juanestban/archi-games"
 aes = "0.8"
 archi-core = { path = "crates/core" }
 archi-cs2 = { path = "crates/trackers/cs2" }
+archi-lol = { path = "crates/trackers/lol" }
 archi-fortnite = { path = "crates/trackers/fortnite" }
 archi-storage = { path = "crates/storage" }
 directories = "6"

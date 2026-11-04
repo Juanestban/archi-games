@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -48,10 +48,11 @@ pub struct AchievementDef {
   /// Secret until unlocked.
   #[serde(default)]
   pub hidden: bool,
-  /// Expansion pack; `None` is the base game, the only part platinum requires.
+  /// Expansion pack; `None` is the base game. Its name is the Fluent token `<game>-pack-<pack>`.
   #[serde(default)]
   pub pack: Option<String>,
-  /// Required for every tier except platinum, which unlocks automatically.
+  /// Required for every tier except platinum, which unlocks by itself when every other
+  /// achievement of its part (the base game or its pack) is unlocked.
   #[serde(default)]
   pub condition: Option<Condition>,
 }
@@ -122,11 +123,9 @@ pub enum DefinitionError {
   InvalidToken(String),
   #[error("achievement `{0}` needs a condition")]
   MissingCondition(String),
-  #[error("platinum `{0}` must not have a condition, it unlocks by completing the base game")]
+  #[error("platinum `{0}` must not have a condition, it unlocks by completing its base game or pack")]
   PlatinumWithCondition(String),
-  #[error("platinum `{0}` must belong to the base game, not a pack")]
-  PlatinumInPack(String),
-  #[error("a game can have only one platinum, found `{0}` and `{1}`")]
+  #[error("the base game and each pack can have only one platinum, found `{0}` and `{1}`")]
   MultiplePlatinum(String, String),
   #[error("achievement `{0}` has an invalid condition: {1}")]
   InvalidCondition(String, &'static str),
@@ -143,22 +142,46 @@ impl GameDefinition {
     self.achievements.iter().find(|a| a.id == id)
   }
 
+  /// The base game's platinum.
   pub fn platinum(&self) -> Option<&AchievementDef> {
-    self.achievements.iter().find(|a| a.tier == Tier::Platinum)
+    self.platinums().find(|a| a.pack.is_none())
   }
 
-  /// Every Fluent token this definition references.
-  pub fn tokens(&self) -> impl Iterator<Item = &str> {
-    std::iter::once(self.game.name.as_str()).chain(self.achievements.iter().flat_map(|a| [a.name.as_str(), a.description.as_str()]))
+  /// The base game's platinum and those of its packs.
+  pub fn platinums(&self) -> impl Iterator<Item = &AchievementDef> {
+    self.achievements.iter().filter(|a| a.tier == Tier::Platinum)
+  }
+
+  /// Every pack, in the order they first appear.
+  pub fn packs(&self) -> Vec<&str> {
+    let mut packs: Vec<&str> = Vec::new();
+    for pack in self.achievements.iter().filter_map(|a| a.pack.as_deref()) {
+      if !packs.contains(&pack) {
+        packs.push(pack);
+      }
+    }
+    packs
+  }
+
+  /// The Fluent token with a pack's name.
+  pub fn pack_token(&self, pack: &str) -> String {
+    format!("{}-pack-{pack}", self.game.id)
+  }
+
+  /// Every Fluent token this definition references, pack names included.
+  pub fn tokens(&self) -> Vec<String> {
+    let achievements = self.achievements.iter().flat_map(|a| [a.name.clone(), a.description.clone()]);
+    let packs = self.packs().into_iter().map(|pack| self.pack_token(pack));
+    std::iter::once(self.game.name.clone()).chain(achievements).chain(packs).collect()
   }
 
   fn validate(&self) -> Result<(), DefinitionError> {
-    if let Some(token) = self.tokens().find(|t| !is_fluent_id(t)) {
-      return Err(DefinitionError::InvalidToken(token.to_owned()));
+    if let Some(token) = self.tokens().into_iter().find(|t| !is_fluent_id(t)) {
+      return Err(DefinitionError::InvalidToken(token));
     }
 
     let mut ids = HashSet::new();
-    let mut platinum: Option<&str> = None;
+    let mut platinums: HashMap<Option<&str>, &str> = HashMap::new();
     for achievement in &self.achievements {
       let id = &achievement.id;
       if !ids.insert(id.as_str()) {
@@ -169,13 +192,9 @@ impl GameDefinition {
           return Err(DefinitionError::PlatinumWithCondition(id.clone()));
         }
         (None, Tier::Platinum) => {
-          if achievement.pack.is_some() {
-            return Err(DefinitionError::PlatinumInPack(id.clone()));
-          }
-          if let Some(first) = platinum {
+          if let Some(first) = platinums.insert(achievement.pack.as_deref(), id) {
             return Err(DefinitionError::MultiplePlatinum(first.to_owned(), id.clone()));
           }
-          platinum = Some(id);
         }
         (None, _) => return Err(DefinitionError::MissingCondition(id.clone())),
         (Some(condition), _) => validate_condition(id, condition)?,
@@ -250,11 +269,21 @@ mod tests {
             name = "a"
             description = "b"
             tier = "platinum"
+
+            [[achievement]]
+            id = "season_plat"
+            name = "a"
+            description = "b"
+            tier = "platinum"
+            pack = "season-2"
             "#,
     )
     .unwrap();
 
-    assert_eq!(definition.achievements.len(), 4);
+    assert_eq!(definition.achievements.len(), 5);
+    assert_eq!(definition.packs(), ["season-2"]);
+    assert_eq!(definition.pack_token("season-2"), "g-pack-season-2");
+    assert_eq!(definition.platinums().count(), 2);
     assert_eq!(definition.get("wins_100").unwrap().condition, Some(Condition::Total { stat: "wins".into(), mode: MODE_ALL.into(), target: 100 }));
     assert!(definition.get("dominant").unwrap().hidden);
     assert_eq!(definition.get("streak").unwrap().pack.as_deref(), Some("season-2"));
@@ -271,8 +300,8 @@ mod tests {
       format!("{}{}", ach("x", "bronze", total), ach("x", "bronze", total)),
       ach("x", "bronze", ""),
       ach("x", "platinum", total),
-      ach("x", "platinum", "pack = \"p\""),
       format!("{}{}", ach("p1", "platinum", ""), ach("p2", "platinum", "")),
+      format!("{}{}", ach("p1", "platinum", "pack = \"p\""), ach("p2", "platinum", "pack = \"p\"")),
       ach("x", "bronze", "condition = { type = \"total\", stat = \"wins\", target = 0 }"),
       ach("x", "bronze", "condition = { type = \"match\", all = [] }"),
       ach("x", "bronze", "condition = { type = \"match\", all = [{ stat = \"wins\" }] }"),
