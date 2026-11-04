@@ -23,11 +23,12 @@ terminarla y actualiza **Estado actual**.
   más de Fortnite (derribos, distancias, pase de batalla, dispositivos…).
   La API ya funciona con la cuenta real (las lecturas siguen sus partidas) y el lector de
   repeticiones está validado con 3 `.replay` reales (la distancia va en centímetros).
-- **Último:** platinos por paquete, Fortnite reorganizado con escalones (116 logros, 7
-  platinos) y League of Legends (59 logros), aún sin publicar.
-- **Siguiente:** el usuario prueba League of Legends con una partida real (o
+- **Último:** v0.6.0: platinos por paquete, Fortnite reorganizado con escalones (116 logros, 7
+  platinos) y League of Legends (59 logros). El usuario la publica sin probar LoL con una partida
+  real (decisión suya, 2026-11-03).
+- **Siguiente:** en una próxima versión, probar League of Legends con una partida real (o
   `cargo test -p archi-lol reads_a_live_match -- --ignored --nocapture` durante una partida) y
-  publica la v0.6.0. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
+  corregir lo que falle. Sigue pendiente el hito del paso 3 (un desbloqueo real tras una partida).
 - **Última actualización:** 2026-11-03.
 
 ## Fase 1: versión inicial con Fortnite
