@@ -50,9 +50,13 @@ const GSI_TOKEN_SETTING: &str = "cs2.gsi_token";
 /// Largest update accepted from CS2 (they're a few KB).
 const GSI_MAX_BODY: usize = 1 << 20;
 
-/// First automatic update check after start, then the interval between checks.
-const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(15);
-const UPDATE_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
+/// First automatic update check after start, then the interval between checks, and the retry
+/// after a failed one (offline right after Windows starts, GitHub down…).
+const UPDATE_FIRST_CHECK: Duration = Duration::from_secs(3);
+const UPDATE_INTERVAL: Duration = Duration::from_secs(60 * 60);
+const UPDATE_RETRY: Duration = Duration::from_secs(5 * 60);
+/// Opening the window checks again, unless a check ran this recently.
+const UPDATE_SHOW_GAP: Duration = Duration::from_secs(5 * 60);
 
 pub enum Command {
   SetApiKey {
@@ -71,6 +75,8 @@ pub enum Command {
     manual: bool,
   },
   InstallUpdate,
+  /// The window was opened (from the tray or a second launch): a good time to look for updates.
+  WindowShown,
   /// The player's answer about replays already read: delete them or keep them.
   DeleteReplays(Vec<ReplayRef>),
   KeepReplays(Vec<ReplayRef>),
@@ -383,16 +389,17 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
 
   let updater = Updater::new().ok();
   let install = Install::detect();
-  let mut next_update_check = Instant::now() + UPDATE_FIRST_CHECK;
+  let mut update_schedule = UpdateSchedule::new(Instant::now());
   let mut pending_update: Option<Update> = None;
   let mut next_replay_scan = Instant::now();
   loop {
-    if Instant::now() >= next_update_check {
-      next_update_check = Instant::now() + UPDATE_INTERVAL;
+    if update_schedule.due(Instant::now()) {
       let auto = storage.setting(update::AUTO_CHECK_SETTING).ok().flatten().as_deref() != Some("false");
-      if auto && let Some(updater) = &updater {
-        check_update(updater, install, false, &mut pending_update, events).await;
-      }
+      let checked = match &updater {
+        Some(updater) if auto => check_update(updater, install, false, &mut pending_update, events).await,
+        _ => true,
+      };
+      update_schedule.done(Instant::now(), checked);
     }
 
     for slot in &mut slots {
@@ -464,9 +471,13 @@ async fn run(catalog: &Catalog, db_path: &Path, mut commands: UnboundedReceiver<
       None => {}
       Some(Command::PollNow) => slots.iter_mut().for_each(|slot| slot.force_poll = true),
       Some(Command::CheckUpdate { manual }) => match &updater {
-        Some(updater) => check_update(updater, install, manual, &mut pending_update, events).await,
+        Some(updater) => {
+          let checked = check_update(updater, install, manual, &mut pending_update, events).await;
+          update_schedule.done(Instant::now(), checked);
+        }
         None => events.send(Event::UpdateFailed(Problem::Update)),
       },
+      Some(Command::WindowShown) => update_schedule.window_shown(Instant::now()),
       Some(Command::InstallUpdate) => {
         if let (Some(updater), Some(update)) = (&updater, &pending_update) {
           install_update(updater, update, events).await;
@@ -623,17 +634,57 @@ async fn poll(session: &mut Session<'_>, tracker: &Tracker, poller: &mut Poller,
   events.status(&game_id, status);
 }
 
-async fn check_update(updater: &Updater, install: Install, manual: bool, pending: &mut Option<Update>, events: &Events) {
+/// When to look for a new version without being asked: right after start, every hour, sooner
+/// after a failure, and whenever the window is opened. Before, a copy left in the tray only
+/// looked every 6 hours, so a release could go unnoticed for most of a day.
+struct UpdateSchedule {
+  next: Instant,
+  last: Option<Instant>,
+}
+
+impl UpdateSchedule {
+  fn new(now: Instant) -> Self {
+    Self { next: now + UPDATE_FIRST_CHECK, last: None }
+  }
+
+  fn due(&self, now: Instant) -> bool {
+    now >= self.next
+  }
+
+  fn window_shown(&mut self, now: Instant) {
+    if self.last.is_none_or(|last| now.duration_since(last) >= UPDATE_SHOW_GAP) {
+      self.next = self.next.min(now);
+    }
+  }
+
+  /// `ok`: the check reached GitHub.
+  fn done(&mut self, now: Instant, ok: bool) {
+    self.last = Some(now);
+    self.next = now + if ok { UPDATE_INTERVAL } else { UPDATE_RETRY };
+  }
+}
+
+/// Whether GitHub answered.
+async fn check_update(updater: &Updater, install: Install, manual: bool, pending: &mut Option<Update>, events: &Events) -> bool {
   match updater.check(install).await {
     Ok(Some(update)) => {
       events.send(Event::UpdateAvailable(UpdateInfo { version: update.version.to_string(), notes: update.notes.clone(), page: update.page.clone() }));
       *pending = Some(update);
+      true
     }
-    Ok(None) if manual => events.send(Event::UpToDate),
-    Ok(None) => {}
-    // Automatic checks fail quietly (offline, GitHub down); the next one retries.
-    Err(_) if manual => events.send(Event::UpdateFailed(Problem::Update)),
-    Err(_) => {}
+    Ok(None) => {
+      if manual {
+        events.send(Event::UpToDate);
+      }
+      true
+    }
+    // Automatic checks fail quietly (offline, GitHub down); the schedule retries soon.
+    Err(_) => {
+      if manual {
+        events.send(Event::UpdateFailed(Problem::Update));
+      }
+      false
+    }
   }
 }
 
@@ -884,6 +935,35 @@ fn on_live_data<'a>(storage: &'a Storage, catalog: &'a Catalog, slot: &mut Slot<
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn updates_are_checked_at_start_hourly_and_sooner_after_a_failure() {
+    let start = Instant::now();
+    let mut schedule = UpdateSchedule::new(start);
+    assert!(!schedule.due(start));
+    assert!(schedule.due(start + UPDATE_FIRST_CHECK));
+
+    schedule.done(start, true);
+    assert!(!schedule.due(start + UPDATE_INTERVAL - Duration::from_secs(1)));
+    assert!(schedule.due(start + UPDATE_INTERVAL));
+
+    schedule.done(start, false);
+    assert!(schedule.due(start + UPDATE_RETRY));
+  }
+
+  #[test]
+  fn opening_the_window_checks_unless_a_check_just_ran() {
+    let start = Instant::now();
+    let mut schedule = UpdateSchedule::new(start);
+    schedule.done(start, true);
+
+    schedule.window_shown(start + Duration::from_secs(60));
+    assert!(!schedule.due(start + Duration::from_secs(60)));
+
+    let later = start + UPDATE_SHOW_GAP;
+    schedule.window_shown(later);
+    assert!(schedule.due(later));
+  }
 
   /// Two requests on one keep-alive connection, as CS2 sends them: both bodies arrive.
   #[tokio::test]

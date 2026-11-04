@@ -26,7 +26,8 @@ terminarla y actualiza **Estado actual**.
 - **Último:** v0.6.0/v0.6.1: platinos por paquete, Fortnite reorganizado con escalones (116
   logros, 7 platinos) y League of Legends (59 logros), publicada sin probar LoL con una partida
   real (decisión del usuario). Después, corregido el cierre de la app al salir una notificación
-  con la ventana principal oculta (sin publicar, para la v0.6.2).
+  con la ventana principal oculta, y la búsqueda de actualizaciones ahora también al abrir la
+  ventana y cada hora (sin publicar, para la v0.6.2).
 - **Siguiente:** en una próxima versión, probar League of Legends con una partida real (o
   `cargo test -p archi-lol reads_a_live_match -- --ignored --nocapture` durante una partida) y
   corregir lo que falle.
@@ -143,6 +144,8 @@ terminarla y actualiza **Estado actual**.
   59 logros en el juego base y 5 paquetes, todos con platino
 - [x] Corregido: la app se cerraba al salir una notificación con la ventana principal oculta
   (en la bandeja durante una partida); la ventana de notificación ahora es un viewport diferido
+- [x] Buscar actualizaciones al arrancar (3 s), cada hora y al abrir la ventana, con reintento a
+  los 5 min si falla (antes: 15 s y cada 6 h, y una copia en la bandeja no veía la versión nueva)
 - [ ] Probar League of Legends con una partida real (certificado, eventos y `GameEnd`)
 - [ ] Más juegos (nuevos `GameTracker`)
 - [ ] Linux y macOS

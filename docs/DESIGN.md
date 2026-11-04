@@ -210,9 +210,13 @@ aquí y, si es una decisión de arquitectura, se escribe un ADR en `docs/adr/`.
 - **Como ArtCraft:** la app consulta la última release de GitHub, avisa con una
   franja sobre el contenido (novedades y botón Actualizar) y se actualiza sola.
   Reglas de seguridad en el [ADR 0002](adr/0002-actualizaciones-desde-github.md).
-- **Cuándo comprueba:** 15 s después de arrancar y cada 6 h, si está activado
-  en Ajustes > Acerca de (por defecto sí); también con "Buscar
-  actualizaciones". Las comprobaciones automáticas fallan en silencio.
+- **Cuándo comprueba:** 3 s después de arrancar, cada hora y cada vez que se
+  abre la ventana (desde la bandeja o al lanzar la app otra vez), salvo si ya
+  comprobó hace menos de 5 min; si está activado en Ajustes > Acerca de (por
+  defecto sí). También con "Buscar actualizaciones". Las comprobaciones
+  automáticas fallan en silencio y se reintentan a los 5 min. Antes eran a los
+  15 s y cada 6 h: una copia en la bandeja tardaba horas en ver una versión
+  nueva y el usuario tenía que buscarla a mano (2026-11-04).
 - **Qué descarga:** si el `.exe` está en `%LOCALAPPDATA%\Programs\Archi Games`
   (instalado con el MSI), el MSI nuevo, que se instala sin administrador y
   arranca la versión nueva (`LAUNCHAPP=1`); si no, el `.exe` portable, que

@@ -228,6 +228,7 @@ impl ArchiApp {
           ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
           ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
           ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+          self.worker.send(Command::WindowShown);
         }
         ShellEvent::PollNow => self.worker.send(Command::PollNow),
         ShellEvent::Quit => {

@@ -16,7 +16,7 @@ define la única excepción y sus garantías.
    por HTTPS (`api.github.com/.../releases/latest` y las descargas de sus
    assets). Ningún otro servidor ni URL configurable.
 2. **Nunca en silencio:** la app solo *comprueba* si hay versión nueva (al
-   arrancar y cada 6 h, desactivable en Ajustes). Descarga e instala solo
+   arrancar, cada hora y al abrir la ventana; desactivable en Ajustes). Descarga e instala solo
    cuando el jugador pulsa **Actualizar**.
 3. **Integridad:** cada release publica `SHA256SUMS.txt`. La descarga se
    verifica contra él antes de ejecutar nada; si no coincide se borra y se
@@ -38,4 +38,5 @@ define la única excepción y sus garantías.
   la verificación en dos pasos activada.
 - Sin firma, Windows SmartScreen puede avisar al ejecutar la versión nueva.
 - La API de GitHub sin autenticar permite 60 consultas por hora e IP; con una
-  cada 6 h no hay riesgo.
+  por hora, más las de abrir la ventana (como mucho una cada 5 min), no hay
+  riesgo.
