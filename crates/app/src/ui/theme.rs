@@ -46,6 +46,8 @@ pub const ACCENT_INK: Color32 = hex(0x74aaff);
 
 pub const BAD: Color32 = hex(0xf87171);
 pub const GOOD: Color32 = hex(0x4ade80);
+/// Something is off but retried on its own.
+pub const WARN: Color32 = hex(0xfbbf24);
 
 /// 3 px: buttons, inputs, segmented controls.
 pub const RADIUS: CornerRadius = CornerRadius::same(3);

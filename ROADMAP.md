@@ -28,10 +28,14 @@ terminarla y actualiza **Estado actual**.
   real (decisión del usuario). Después, corregido el cierre de la app al salir una notificación
   con la ventana principal oculta, y la búsqueda de actualizaciones ahora también al abrir la
   ventana y cada hora (sin publicar, para la v0.6.2).
+- **v0.6.4** (2026-11-07): un HTTP 5xx de fortnite-api.com (caída del servicio de estadísticas,
+  p. ej. `500 "failed to fetch the requested stats"`) es ahora `TrackError::Unavailable`, un
+  problema transitorio: la píldora de estado ya no dice "Revisa Ajustes" ni tapa "En partida";
+  solo pone el punto en ámbar con el motivo en el tooltip. Tests de regresión en `api.rs` y `ui`.
 - **Siguiente:** en una próxima versión, probar League of Legends con una partida real (o
   `cargo test -p archi-lol reads_a_live_match -- --ignored --nocapture` durante una partida) y
   corregir lo que falle.
-- **Última actualización:** 2026-11-04.
+- **Última actualización:** 2026-11-07.
 
 ## Fase 1: versión inicial con Fortnite
 

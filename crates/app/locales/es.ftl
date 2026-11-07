@@ -64,6 +64,7 @@ ui-time-date = el { $date }
 ui-error-no-api-key = Falta la clave de API. Añádela en Ajustes.
 ui-error-unauthorized = La clave de API no es válida.
 ui-error-rate-limited = Demasiadas consultas; se reintentará en unos minutos.
+ui-error-unavailable = El servicio de estadísticas no responde ahora mismo (no es tu clave ni tu cuenta); se reintentará solo.
 ui-error-unexpected = La API respondió algo inesperado; se reintentará.
 ui-error-storage = No se pudo leer o escribir la base de datos.
 ui-error-credentials = No se pudo acceder al Administrador de credenciales de Windows.

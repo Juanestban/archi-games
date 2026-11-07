@@ -30,6 +30,9 @@ pub enum TrackError {
   RateLimited { retry_after: Option<Duration> },
   #[error("network error: {0}")]
   Network(String),
+  /// The API's own servers failed (HTTP 5xx): nothing for the player to fix.
+  #[error("the stats service is unavailable: {0}")]
+  Unavailable(String),
   #[error("unexpected API response: {0}")]
   Unexpected(String),
 }

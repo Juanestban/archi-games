@@ -388,22 +388,20 @@ impl ArchiApp {
 
   /// Tracking at a glance, over every game: a dot and a mono label.
   fn status_pill(&self, ui: &mut Ui) {
-    let problem = self
+    let problems: Vec<(Problem, String)> = self
       .games
       .iter()
-      .find_map(|(game_id, game)| game.status.problem.map(|problem| problem.token(game_id)))
-      .or(self.load_failed.then(|| Problem::Storage.token("")));
+      .filter_map(|(game_id, game)| game.status.problem.map(|problem| (problem, problem.token(game_id))))
+      .chain(self.load_failed.then(|| (Problem::Storage, Problem::Storage.token(""))))
+      .collect();
+    // One the player can fix comes first.
+    let problem = problems.iter().find(|(problem, _)| !problem.is_transient()).or(problems.first());
     let any = |test: fn(&GameUi) -> bool| self.games.values().any(test);
     let busy = any(|game| game.status.busy);
-    let (color, token) = match problem {
-      Some(_) => (theme::BAD, "ui-status-problem"),
-      None if busy => (theme::ACCENT_400, "ui-busy"),
-      None if !any(|game| game.account.is_some() && (game.status.has_api_key || game.status.integration != Integration::Off)) => {
-        (theme::FAINT, "ui-status-setup")
-      }
-      None if any(|game| game.status.game_running) => (theme::GOOD, "ui-status-in-game"),
-      None => (theme::GOOD, "ui-status-tracking"),
-    };
+    let set_up = any(|game| game.account.is_some() && (game.status.has_api_key || game.status.integration != Integration::Off));
+    let running = any(|game| game.status.game_running);
+    let (color, token) = pill(problem.map(|(problem, _)| *problem), busy, set_up, running);
+    let problem = problem.map(|(_, token)| token);
     let label = widgets::caps(ui, &self.tr(token), theme::HUD_SIZE, theme::MUTED);
     let (rect, response) = ui.allocate_exact_size(vec2(label.size().x + 34.0, 24.0), Sense::hover());
     ui.painter().rect(rect, theme::RADIUS, theme::WASH, theme::hairline(), egui::StrokeKind::Inside);
@@ -417,7 +415,7 @@ impl ArchiApp {
     ui.painter().circle_filled(dot, 3.0, color);
     ui.painter().galley(pos2(rect.left() + 22.0, rect.center().y - label.size().y / 2.0), label, theme::MUTED);
     if let Some(problem) = problem {
-      response.on_hover_text(self.tr(&problem));
+      response.on_hover_text(self.tr(problem));
     }
   }
 
@@ -797,5 +795,37 @@ impl eframe::App for ArchiApp {
       egui::CentralPanel::no_frame().show(ui, |ui| self.content(ui));
     });
     chrome::window_edges(ui.ctx());
+  }
+}
+
+/// The status pill's dot and label. A transient problem (network, rate limit, the stats
+/// service down) only turns the dot amber: the label still says whether a game runs, and
+/// "Check Settings" is kept for what the player can fix there.
+fn pill(problem: Option<Problem>, busy: bool, set_up: bool, running: bool) -> (Color32, &'static str) {
+  let transient = problem.is_some_and(Problem::is_transient);
+  match problem {
+    Some(_) if !transient => (theme::BAD, "ui-status-problem"),
+    _ if busy => (theme::ACCENT_400, "ui-busy"),
+    _ if !set_up => (theme::FAINT, "ui-status-setup"),
+    _ => (if transient { theme::WARN } else { theme::GOOD }, if running { "ui-status-in-game" } else { "ui-status-tracking" }),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn an_outage_keeps_showing_the_game_running() {
+    assert_eq!(pill(Some(Problem::Unavailable), false, true, true), (theme::WARN, "ui-status-in-game"));
+    assert_eq!(pill(Some(Problem::Network), false, true, false), (theme::WARN, "ui-status-tracking"));
+    assert_eq!(pill(None, false, true, true), (theme::GOOD, "ui-status-in-game"));
+  }
+
+  #[test]
+  fn only_fixable_problems_send_to_settings() {
+    assert_eq!(pill(Some(Problem::Unauthorized), false, true, true), (theme::BAD, "ui-status-problem"));
+    assert_eq!(pill(Some(Problem::Unexpected), false, true, true), (theme::BAD, "ui-status-problem"));
+    assert_eq!(pill(None, false, false, true), (theme::FAINT, "ui-status-setup"));
   }
 }

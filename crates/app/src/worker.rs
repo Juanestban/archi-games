@@ -156,6 +156,8 @@ pub enum Problem {
   Unauthorized,
   RateLimited,
   Network,
+  /// The stats service itself is down; polls go on and it clears by itself.
+  Unavailable,
   Unexpected,
   Storage,
   Credentials,
@@ -181,6 +183,7 @@ impl Problem {
       Self::NoApiKey => "ui-error-no-api-key",
       Self::Unauthorized => "ui-error-unauthorized",
       Self::RateLimited => "ui-error-rate-limited",
+      Self::Unavailable => "ui-error-unavailable",
       Self::Unexpected => "ui-error-unexpected",
       Self::Storage => "ui-error-storage",
       Self::Credentials => "ui-error-credentials",
@@ -188,6 +191,12 @@ impl Problem {
       Self::UpdateIntegrity => "ui-error-update-integrity",
     };
     token.to_owned()
+  }
+
+  /// Out of the player's hands and retried on its own: Settings has nothing to fix, so the
+  /// status pill keeps showing whether the game runs.
+  pub fn is_transient(self) -> bool {
+    matches!(self, Self::Network | Self::RateLimited | Self::Unavailable)
   }
 }
 
@@ -199,6 +208,7 @@ impl From<&TrackError> for Problem {
       TrackError::Unauthorized => Self::Unauthorized,
       TrackError::RateLimited { .. } => Self::RateLimited,
       TrackError::Network(_) => Self::Network,
+      TrackError::Unavailable(_) => Self::Unavailable,
       TrackError::Unexpected(_) => Self::Unexpected,
     }
   }

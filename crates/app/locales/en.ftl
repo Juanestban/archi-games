@@ -64,6 +64,7 @@ ui-time-date = on { $date }
 ui-error-no-api-key = The API key is missing. Add it in Settings.
 ui-error-unauthorized = The API key isn't valid.
 ui-error-rate-limited = Too many requests; retrying in a few minutes.
+ui-error-unavailable = The stats service isn't responding right now (not your key or account); it will retry on its own.
 ui-error-unexpected = The API sent something unexpected; will retry.
 ui-error-storage = Couldn't read or write the database.
 ui-error-credentials = Couldn't access Windows Credential Manager.

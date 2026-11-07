@@ -115,6 +115,8 @@ pub(crate) fn parse_stats(status: u16, retry_after: Option<Duration>, body: &[u8
     403 => return Err(TrackError::Unauthorized),
     404 => return Err(TrackError::NotFound),
     429 => return Err(TrackError::RateLimited { retry_after }),
+    // e.g. 500 "failed to fetch the requested stats": fortnite-api.com couldn't reach Epic.
+    500..=599 => return Err(TrackError::Unavailable(format!("HTTP {status}: {message}"))),
     _ => return Err(TrackError::Unexpected(format!("HTTP {status}: {message}"))),
   }
 
@@ -200,7 +202,14 @@ mod tests {
     assert!(matches!(parse_stats(404, None, br#"{"status":404,"error":"the requested account does not exist"}"#), Err(TrackError::NotFound)));
     let retry = Some(Duration::from_secs(30));
     assert!(matches!(parse_stats(429, retry, b""), Err(TrackError::RateLimited { retry_after }) if retry_after == retry));
-    assert!(matches!(parse_stats(500, None, b"oops"), Err(TrackError::Unexpected(_))));
+    assert!(matches!(parse_stats(418, None, b"oops"), Err(TrackError::Unexpected(_))));
+  }
+
+  #[test]
+  fn server_errors_are_an_outage() {
+    let outage = br#"{"status":500,"error":"failed to fetch the requested stats (0)"}"#;
+    assert!(matches!(parse_stats(500, None, outage), Err(TrackError::Unavailable(m)) if m.contains("failed to fetch")));
+    assert!(matches!(parse_stats(503, None, b""), Err(TrackError::Unavailable(_))));
   }
 
   #[test]
